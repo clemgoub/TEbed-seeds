@@ -5,7 +5,7 @@ vgp_tebed_repo: ~/Documents/VGP_TEbed   # sync-contract source (read-only)
 work_dir: runs                          # --work-dir overrides (gitignored by default)
 
 assembly: GCA_951799975.1
-assembly_fasta: null                    # REQUIRED for stage >=1; provide path
+assembly_fasta: data/GCA_951799975.1.fna   # gunzip of GCA_951799975.1_fGobNig1.1_genomic.fna.gz; 298/298 names+lengths match chrom.sizes
 
 # stage 0 -- candidate identification
 edge_min_joint_bp: 500      # measured: 500 recovers MITE links 1kb starves (94 edges, 100% MITE-scale)
@@ -29,6 +29,14 @@ sampling:
   full_length_frac: 0.60
 
 # stage 2-3 -- consensus + seed
+seed:
+  # a copy longer than this x the CLUSTER's modal consensus length is a tandem
+  # multimer, not one copy -- measured: REPET's over-assembled 764 bp entry let
+  # 495 and 642 bp copies of a 265 bp element into the cluster-62 seed
+  max_copy_x_modal_consensus: 1.5
+  min_match_occupancy: 0.5    # column is a consensus (match) column above this
+  min_frag_bp: 30             # fragments below this carry no alignable signal
+
 consensus_engine: mafft     # mafft first (fastest to lintable), refiner later
 overextension_ratio: 1.5    # vs MEDIAN member consensus length
 kimura_cpg: true            # --no-kimura-cpg to disable

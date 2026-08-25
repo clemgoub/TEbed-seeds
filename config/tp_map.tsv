@@ -1,0 +1,79 @@
+#tp_map_version: dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1
+#generated: 2026-08-25T05:38:45Z
+#generator: tools/build_tp_map.py (TPMAP_REV=1)
+#dfam_release: 4.0
+#dfam_class_url: https://www.dfam.org/releases/current/infrastructure/class_ns.tsv
+#dfam_class_sha256: a1d5f8a8fd635dd7a0985942d7650c3a58da53570d2ee8d7ced7b2c755ac5731
+#dfam_class_file: /Users/clementgoubert/Library/Caches/stk/classification.tsv
+#dfam_accepted_strings: 471
+#vocabulary_version: dfam-rm-2026.1-draft
+#vocabulary_source: /Users/clementgoubert/Documents/VGP_TEbed/config/class_map.tsv
+#
+# canonical class path (vgptrack grammar repeat:kind:class:order:superfamily)
+# -> Dfam '#=GF TP'.  `tp` is the RepeatMasker-style short form; `tp_long` is
+# the equivalent semicolon path.  BOTH are accepted by `stk lint` (exact set
+# membership -- a prefix of a valid path is NOT valid).
+#
+# status:
+#   exact        the Dfam node means the same thing as the canonical path.
+#   placeholder  Dfam has no node at this depth; `tp` is Dfam's documented
+#                fallback and LOSES information.  The seed emitter must treat a
+#                placeholder as a BLOCK unless the caller explicitly opts in.
+#
+# A canonical path absent from this file has no honest Dfam counterpart and
+# MUST block seed emission (RESUME.md 4.8) -- never guess a TP.  Paths left out
+# on purpose, with reasons, are listed at the bottom of this header.
+#
+# Every packet must record `tp_map_version` above.  Regenerate with:
+#   .venv/bin/python tools/build_tp_map.py --fetch
+#
+# deliberately unmapped:
+#   repeat:TE:ClassII:TIR:Academ	Dfam 4.0 has only DNA/Academ-1, -2, -H; no parent 'Academ' entry. Picking a numbered subgroup would be a guess.
+#   repeat:TE:ClassII:TIR:Sola	Dfam 4.0 has only DNA/Sola-1, -2, -3; no parent 'Sola' entry.
+#   repeat:multigene	Ambiguous: covers RNA-gene and protein multigene families. Dfam 'RNA' (Interspersed_Repeat;Pseudogene;RNA) would assert RNA and 'interspersed'.
+#   repeat:multigene:srpRNA	'srpRNA' is a RepeatMasker class but is absent from Dfam class_ns.tsv in this release.
+#   repeat:tandem	No bare 'Tandem_Repeat' entry; Simple_repeat and Satellite both assert more.
+#
+canonical_path	tp	scheme_version	source_url	status	tp_long	note
+repeat	Unknown	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	placeholder	Interspersed_Repeat;Unknown	Abstention in this vocabulary (vgptrack UNINFORMATIVE_PATHS). Dfam Interspersed_Repeat;Unknown is the documented fallback but asserts 'interspersed', which 'repeat' does not.
+repeat:TE	Unknown	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	placeholder	Interspersed_Repeat;Unknown	Dfam has no 'transposable element, class unknown' node; the TE assertion is LOST.
+repeat:TE:ClassI	Unknown	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	placeholder	Interspersed_Repeat;Unknown	Dfam has no Class_I_Retrotransposition-only node; the Class I assertion is LOST.
+repeat:TE:ClassI:DIRS	LTR/DIRS	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;Retrotransposon;Tyrosine_Recombinase_Elements;DIRS	Wicker DIRS order = Dfam Tyrosine_Recombinase_Elements;DIRS.
+repeat:TE:ClassI:LINE	LINE	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE	Order-level.
+repeat:TE:ClassI:LINE:I	LINE/I	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE;Group-II;Group-2;R1-like;R1-group;I-group;I	
+repeat:TE:ClassI:LINE:Jockey	LINE/I-Jockey	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE;Group-II;Group-2;R1-like;R1-group;I-group;Jockey	Dfam places Jockey inside the I-group: LINE/I-Jockey. Bare 'LINE/Jockey' is NOT in the Dfam list.
+repeat:TE:ClassI:LINE:L1	LINE/L1	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE;Group-II;Group-1;L1-like;L1-group;L1	
+repeat:TE:ClassI:LINE:R2	LINE/R2	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE;Group-II;Group-1;R2-like;R2	
+repeat:TE:ClassI:LINE:RTE	LINE/RTE	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE;Group-II;Group-2;RTE-like	Dfam RTE-like clade (Group-II;Group-2;RTE-like).
+repeat:TE:ClassI:LTR	LTR	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;Retrotransposon;Long_Terminal_Repeat_Element	Order-level; Long_Terminal_Repeat_Element.
+repeat:TE:ClassI:LTR:BelPao	LTR/Pao	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;Retrotransposon;Long_Terminal_Repeat_Element;Bel-Pao	Dfam short form is LTR/Pao; long form Bel-Pao.
+repeat:TE:ClassI:LTR:Copia	LTR/Copia	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;Retrotransposon;Long_Terminal_Repeat_Element;Ty1-Copia	Dfam long form Ty1-Copia.
+repeat:TE:ClassI:LTR:ERV	LTR/ERV	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;Retrotransposon;Long_Terminal_Repeat_Element;Gypsy-ERV;Retroviridae;Orthoretrovirinae	Retroviridae;Orthoretrovirinae. No ERV subgroup asserted.
+repeat:TE:ClassI:LTR:Gypsy	LTR/Gypsy	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;Retrotransposon;Long_Terminal_Repeat_Element;Gypsy-ERV;Gypsy	Ty3/Gypsy. Dfam is renaming Gypsy->Ty3; short form still LTR/Gypsy in this release.
+repeat:TE:ClassI:PLE	PLE	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;Retrotransposon;Penelope-like_Elements	Penelope-like elements.
+repeat:TE:ClassI:SINE	SINE	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE-dependent_Retroposon;SINE	Order-level; no promoter asserted.
+repeat:TE:ClassI:SINE:5S	SINE/5S	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE-dependent_Retroposon;SINE;5S-RNA_Promoter	5S-RNA promoter.
+repeat:TE:ClassI:SINE:7SL	SINE/7SL	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE-dependent_Retroposon;SINE;7SL-RNA_Promoter	7SL-RNA promoter.
+repeat:TE:ClassI:SINE:tRNA	SINE/tRNA	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE-dependent_Retroposon;SINE;tRNA_Promoter;No_or_Unknown_Core;Unknown_LINE-dependent	tRNA promoter, no core / LINE partner asserted.
+repeat:TE:ClassII	Unknown	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	placeholder	Interspersed_Repeat;Unknown	Dfam has no Class_II_DNA_Transposition-only node; the Class II assertion is LOST. Do NOT substitute 'DNA' -- that asserts the TIR order.
+repeat:TE:ClassII:Crypton	DNA/Crypton	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Tyrosine_Recombinase;Crypton	Dfam Tyrosine_Recombinase;Crypton.
+repeat:TE:ClassII:Helitron	RC	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Helicase	Wicker Helitron order = Dfam Class_II_DNA_Transposition;Helicase, short form 'RC'. NOT RC/Helitron: that resolves to Helicase;Helitron-1 and would exclude Helentron/Helitron-2.
+repeat:TE:ClassII:Maverick	DNA/Maverick	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;DNA_Polymerase;Maverick	Dfam DNA_Polymerase;Maverick (Polinton).
+repeat:TE:ClassII:TIR	DNA	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase	Wicker TIR order = Dfam Class_II_DNA_Transposition;Transposase, short form 'DNA'.
+repeat:TE:ClassII:TIR:CACTA	DNA/CMC	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;CACTA;CMC	CACTA superfamily = Dfam CACTA;CMC (CACTA-Mirage-Chapaev). Bare 'CACTA' is not a Dfam entry.
+repeat:TE:ClassII:TIR:Ginger	DNA/Ginger	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;Ginger	
+repeat:TE:ClassII:TIR:Kolobok	DNA/Kolobok	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;Kolobok	
+repeat:TE:ClassII:TIR:Merlin	DNA/Merlin	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;Merlin	
+repeat:TE:ClassII:TIR:Mutator	DNA/MULE	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;Mutator-like	Dfam Mutator-like.
+repeat:TE:ClassII:TIR:PElement	DNA/P	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;P_Element	Dfam P_Element.
+repeat:TE:ClassII:TIR:PIFHarbinger	DNA/PIF	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;PIF-Harbinger	Dfam PIF-Harbinger.
+repeat:TE:ClassII:TIR:PiggyBac	DNA/PiggyBac	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;PiggyBac_Group;PiggyBac	
+repeat:TE:ClassII:TIR:Tc1Mariner	DNA/TcMar	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;Tc1-Mariner	Dfam Tc1-Mariner.
+repeat:TE:ClassII:TIR:hAT	DNA/hAT	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;hAT	
+repeat:artefact	ARTEFACT	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Artifact	Dfam 'Artifact'.
+repeat:multigene:rRNA	rRNA	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Pseudogene;RNA;rRNA	
+repeat:multigene:scRNA	scRNA	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Pseudogene;RNA;scRNA	
+repeat:multigene:snRNA	snRNA	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Pseudogene;RNA;snRNA	
+repeat:multigene:tRNA	tRNA	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Interspersed_Repeat;Pseudogene;RNA;tRNA	Dfam Interspersed_Repeat;Pseudogene;RNA;tRNA.
+repeat:tandem:satellite	Satellite	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Tandem_Repeat;Satellite	Dfam Tandem_Repeat;Satellite; no centromeric/subtelomeric subtype asserted.
+repeat:tandem:simple	Simple_repeat	dfam-4.0+class_ns-a1d5f8a8fd63+tpmap-r1	https://www.dfam.org/releases/current/infrastructure/class_ns.tsv	exact	Tandem_Repeat;Simple	Dfam Tandem_Repeat;Simple.

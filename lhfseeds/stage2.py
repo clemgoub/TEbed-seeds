@@ -1,0 +1,359 @@
+"""Stage 2 -- from copy coordinates to extracted sequence and an MSA.
+
+Three things happen here, in order:
+
+1. LOCUS DEDUPLICATION.  Stage 1 emits one row per (member, copy).  Members of
+   a cluster are, by construction, different tools describing the SAME element,
+   so they annotate the same genomic loci over and over: measured on cluster 62,
+   90,313 pooled copy rows collapse to 34,190 distinct loci -- 2.64 annotations
+   per locus, up to 30.  Sampling the pooled rows naively would put the same
+   sequence into the alignment ~2.6x on average, inflating apparent depth and
+   biasing the consensus toward whichever tool is most prolific.  One
+   representative per locus, with the cross-tool support recorded.
+
+2. FRAGMENT EXPLOSION.  A copy may be several fragments bridged across a gap.
+   The gap interior is excluded on purpose (62.9% of rm2 inter-fragment gaps
+   are mostly another element).  Emitting one alignment row per FRAGMENT keeps
+   every Dfam sequence identifier a genuine contiguous interval while still
+   excluding the gap -- both requirements at once, no concatenated chimeras.
+
+3. EXTRACTION.  Two files per packet, because they serve different consumers:
+     copies.fa          element only          -> MSA, seed, consensus
+     copies.flanked.fa  element +- flank_bp   -> TSD detection, TE-Aid, Refiner
+   Seed identifiers therefore describe the element interval exactly, which is
+   what `stk lint --genome` validates against the assembly.
+"""
+from __future__ import annotations
+
+import collections
+import subprocess
+import tempfile
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from .fasta import IndexedFasta, revcomp
+
+LOCUS_MIN_RECIPROCAL = 0.5   # same rule stage0 uses for graph edges
+MIN_FRAG_BP = 30             # below this a fragment carries no alignable signal
+
+
+# --------------------------------------------------------------- 1. loci
+def _locus_ids(starts: np.ndarray, ends: np.ndarray) -> np.ndarray:
+    """Group intervals on one chromosome into loci.
+
+    Two annotations are the same locus when they overlap reciprocally by
+    >= LOCUS_MIN_RECIPROCAL of the SHORTER one.  Mere adjacency is not enough:
+    this element occurs in tandem arrays (2,892 same-strand runs measured), and
+    a touch-based rule would chain a whole array into a single "locus" -- the
+    same failure mode as F1 one level up.
+    """
+    n = len(starts)
+    parent = np.arange(n)
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return int(x)
+
+    order = np.argsort(starts, kind="stable")
+    frontier: list[int] = []          # intervals still able to overlap
+    for oi in order:
+        s, e = starts[oi], ends[oi]
+        keep = []
+        for mi in frontier:
+            ms, me = starts[mi], ends[mi]
+            if me <= s:
+                continue              # cannot overlap this or anything later
+            keep.append(mi)
+            inter = min(e, me) - max(s, ms)
+            if inter >= LOCUS_MIN_RECIPROCAL * min(e - s, me - ms):
+                ra, rb = find(oi), find(mi)
+                if ra != rb:          # union, so a chain gets ONE id, not the last
+                    parent[ra] = rb
+        keep.append(oi)
+        frontier = keep
+    roots = np.array([find(i) for i in range(n)])
+    _, lid = np.unique(roots, return_inverse=True)
+    return lid.astype(np.int64)
+
+
+def cluster_loci(copies: pd.DataFrame, modal_cons_len: float = float("nan")
+                 ) -> pd.DataFrame:
+    """Collapse pooled per-member copies to one representative per locus.
+
+    Representative ranking, in order:
+      1. near-full-length             -- a complete copy beats a stub
+      2. own consensus coordinates    -- bed16 beats an inherited length
+      3. fewest fragments             -- an unbridged copy beats a bridged one
+      4. longest span                 -- the runaway cap already bounds this
+
+    `is_full` is pooled with OR: if any tool at the locus reached both consensus
+    ends, the locus is full-length.  This is where pooling earns its keep --
+    EDTA carries no consensus coordinates at all and can never call a copy full
+    on its own, but at a locus rm2 also annotates it inherits that judgement.
+    """
+    if not len(copies):
+        return copies.assign(locus_id=[], n_members=[], n_tools=[],
+                             members=[], any_full=[], span_disagreement_bp=[])
+    df = copies.reset_index(drop=True).copy()
+    df["_tool"] = df.member.str.split(":").str[0]
+    lid = np.full(len(df), -1, dtype=np.int64)
+    base = 0
+    for ch, g in df.groupby("chrom", sort=False):
+        sub = _locus_ids(g.start.to_numpy(), g.end.to_numpy())
+        lid[g.index.to_numpy()] = sub + base
+        base += sub.max() + 1 if len(sub) else 0
+    df["locus_id"] = lid
+
+    df["_rank_full"] = (~df.is_full.astype(bool)).astype(int)          # 0 best
+    df["_rank_src"] = (df.cons_len_source != "bed16").astype(int)
+    df["_rank_frag"] = df.n_fragments.astype(int)
+    df["_rank_span"] = -(df.end - df.start)
+
+    agg = df.groupby("locus_id").agg(
+        n_members=("member", "size"),
+        n_tools=("_tool", "nunique"),
+        members=("member", lambda s: ";".join(sorted(set(s)))),
+        any_full=("is_full", "any"),
+        locus_start=("start", "min"),
+        locus_end=("end", "max"),
+    )
+    # drop_duplicates, NOT groupby().first(): first() is per-column and takes the
+    # first NON-NULL value, which would splice fields from several annotations
+    # into a representative that does not exist at the locus.
+    rep = (df.sort_values(["locus_id", "_rank_full", "_rank_src",
+                           "_rank_frag", "_rank_span"], kind="stable")
+             .drop_duplicates(subset="locus_id", keep="first"))
+    out = rep.merge(agg, on="locus_id")
+    out["span_disagreement_bp"] = ((out.locus_end - out.locus_start)
+                                   - (out.end - out.start))
+    if not np.isnan(modal_cons_len):
+        # a locus far wider than the element is a chained array, not one copy
+        out["locus_x_consensus"] = ((out.locus_end - out.locus_start)
+                                    / modal_cons_len).round(2)
+    return out.drop(columns=[c for c in out.columns if c.startswith("_rank")]
+                    + ["_tool"])
+
+
+# ---------------------------------------------------- 2. fragment explosion
+def explode_fragments(copies: pd.DataFrame, min_frag_bp: int = MIN_FRAG_BP
+                      ) -> pd.DataFrame:
+    """One row per fragment, each a genuine contiguous interval.
+
+    A single-fragment copy yields exactly one row, so this is a no-op for the
+    99.75% of gap-aware copies that are unbridged.
+    """
+    rows = []
+    for r in copies.itertuples():
+        fs = [int(x) for x in str(r.frag_starts).split(";")]
+        fe = [int(x) for x in str(r.frag_ends).split(";")]
+        nf = len(fs)
+        for i, (s, e) in enumerate(zip(fs, fe)):
+            if e - s < min_frag_bp:
+                continue
+            d = {c: getattr(r, c) for c in copies.columns
+                 if c not in ("start", "end", "frag_starts", "frag_ends")}
+            d.update(start=s, end=e, frag_index=i, frag_of=nf,
+                     is_fragment_of_bridged=nf > 1)
+            rows.append(d)
+    return pd.DataFrame(rows)
+
+
+# --------------------------------------------------------- 3. extraction
+def seq_id(assembly: str, chrom: str, start: int, end: int, strand: str) -> str:
+    """Dfam Smitten identifier: 1-based fully closed, from BED half-open."""
+    return f"{assembly}:{chrom}:{start + 1}-{end}_{strand}"
+
+
+def extract(fa: IndexedFasta, rows: pd.DataFrame, assembly: str,
+            flank_bp: int = 0) -> tuple[list[tuple[str, str]], pd.DataFrame]:
+    """Extract each row; reverse-complement '-' rows.
+
+    Returns (records, stats).  With flank_bp>0 the flank is added in GENOMIC
+    space before the reverse complement, so a '-' copy gets its upstream flank
+    where the element's 5' end actually is.
+    """
+    recs, stats = [], []
+    for r in rows.itertuples():
+        a, b = int(r.start) - flank_bp, int(r.end) + flank_bp
+        s = fa.fetch(r.chrom, a, b)
+        got_left = int(r.start) - max(0, a)
+        got_right = min(fa.length(r.chrom), b) - int(r.end)
+        if r.strand == "-":
+            s = revcomp(s)
+            got_left, got_right = got_right, got_left
+        sid = seq_id(assembly, r.chrom, int(r.start), int(r.end), r.strand)
+        recs.append((sid, s))
+        n_count = s.upper().count("N")
+        stats.append(dict(seq_id=sid, length=len(s), n_bases=n_count,
+                          n_frac=n_count / max(len(s), 1),
+                          flank_left=got_left, flank_right=got_right,
+                          element_bp=int(r.end) - int(r.start)))
+    return recs, pd.DataFrame(stats)
+
+
+def write_fasta(recs: list[tuple[str, str]], path: Path, width: int = 60) -> None:
+    with open(path, "w") as fh:
+        for sid, s in recs:
+            fh.write(f">{sid}\n")
+            for i in range(0, len(s), width):
+                fh.write(s[i:i + width] + "\n")
+
+
+def read_fasta(path: Path) -> list[tuple[str, str]]:
+    recs, sid, buf = [], None, []
+    for line in open(path):
+        line = line.rstrip()
+        if line.startswith(">"):
+            if sid is not None:
+                recs.append((sid, "".join(buf)))
+            sid, buf = line[1:].split()[0], []
+        elif line:
+            buf.append(line)
+    if sid is not None:
+        recs.append((sid, "".join(buf)))
+    return recs
+
+
+# ------------------------------------------------------------ 4. sampling
+def stratified_sample(copies: pd.DataFrame, cap: int, floor: int,
+                      full_frac: float, seed: int = 42,
+                      full_col: str = "any_full") -> pd.DataFrame:
+    """Sample <=cap copies, ~full_frac of them near-full-length.
+
+    Partial copies are stratified by WHICH PART of the consensus they cover, in
+    five bands over the consensus midpoint.  Uniform random sampling of partials
+    would over-represent whichever end of the element survives most often (for a
+    LINE, the 3' end), and the rebuilt consensus would then be supported at one
+    end and thin at the other.  Realized -- not target -- composition is what
+    the packet records, because repeatome intactness varies by taxon.
+    """
+    rng = np.random.default_rng(seed)
+    isfull = copies[full_col].astype(bool)
+    if len(copies) <= max(floor, 1):
+        return copies.assign(sampled_as=np.where(isfull, "full", "partial"),
+                             cov_band=-1)
+    n = min(cap, len(copies))
+    full = copies[isfull]
+    part = copies[~isfull]
+
+    want_full = min(int(round(n * full_frac)), len(full))
+    take_full = (full.sample(want_full, random_state=int(rng.integers(1 << 31)))
+                 if want_full else full.iloc[:0])
+    take_full = take_full.assign(cov_band=-1)
+
+    want_part = n - len(take_full)
+    if want_part > 0 and len(part):
+        cs, ce, cl = part.cons_start, part.cons_end, part.cons_len
+        mid = (cs + ce) / 2 / cl.replace(0, np.nan)
+        band = pd.cut(mid, bins=[-np.inf, .2, .4, .6, .8, np.inf],
+                      labels=False).fillna(-1).astype(int)
+        part = part.assign(cov_band=band)
+        picks, per = [], max(1, want_part // max(band.nunique(), 1))
+        for b, g in part.groupby("cov_band"):
+            picks.append(g.sample(min(per, len(g)),
+                                  random_state=int(rng.integers(1 << 31))))
+        take_part = pd.concat(picks) if picks else part.iloc[:0]
+        if len(take_part) < want_part:            # top up from what is left
+            left = part.drop(take_part.index)
+            if len(left):
+                take_part = pd.concat([take_part, left.sample(
+                    min(want_part - len(take_part), len(left)),
+                    random_state=int(rng.integers(1 << 31)))])
+        take_part = take_part.iloc[:want_part]
+    else:
+        take_part = part.iloc[:0].assign(cov_band=-1)
+
+    short = n - len(take_full) - len(take_part)   # not enough partials existed
+    if short > 0 and len(full) > len(take_full):
+        extra = full.drop(take_full.index).sample(
+            min(short, len(full) - len(take_full)),
+            random_state=int(rng.integers(1 << 31))).assign(cov_band=-1)
+        take_full = pd.concat([take_full, extra])
+
+    out = pd.concat([take_full.assign(sampled_as="full"),
+                     take_part.assign(sampled_as="partial")])
+    return out.sort_values(["chrom", "start"]).reset_index(drop=True)
+
+
+# ------------------------------------------------------------------ 5. MSA
+def mafft(in_fa: Path, out_fa: Path, threads: int = 0,
+          extra: tuple[str, ...] = ("--auto", "--quiet",
+                                    "--adjustdirectionaccurately")) -> dict:
+    """Run MAFFT.  --adjustdirectionaccurately because tool strand calls
+    disagree at some loci; letting MAFFT settle it costs little and a
+    strand-flipped row would otherwise poison the consensus."""
+    cmd = ["mafft", *extra, "--thread", str(threads or 1), str(in_fa)]
+    with open(out_fa, "w") as fh:
+        p = subprocess.run(cmd, stdout=fh, stderr=subprocess.PIPE, text=True)
+    if p.returncode != 0:
+        raise RuntimeError(f"mafft failed ({p.returncode}): {p.stderr[-2000:]}")
+    return dict(cmd=" ".join(cmd), stderr_tail=p.stderr[-500:])
+
+
+def msa_matrix(recs: list[tuple[str, str]]) -> tuple[list[str], np.ndarray]:
+    """(ids, uint8 matrix) -- MAFFT lowercases reversed rows and may prefix
+    '_R_' on ids it flipped; normalise both."""
+    ids = [i[3:] if i.startswith("_R_") else i for i, _ in recs]
+    w = max(len(s) for _, s in recs)
+    m = np.full((len(recs), w), ord("-"), dtype=np.uint8)
+    for i, (_, s) in enumerate(recs):
+        a = np.frombuffer(s.upper().encode(), dtype=np.uint8)
+        m[i, :len(a)] = a
+    return ids, m
+
+
+def consensus(m: np.ndarray, min_occupancy: float = 0.5,
+              tie: str = "iupac") -> tuple[str, np.ndarray, np.ndarray]:
+    """Majority consensus with an occupancy rule.
+
+    Returns (consensus_string, occupancy_per_column, is_match_column).
+    A column with occupancy below min_occupancy is an INSERT column: it is not
+    part of the consensus, and in Stockholm terms it is a '.' in the RF line.
+    """
+    gap = ord("-")
+    occ = (m != gap).mean(axis=0)
+    is_match = occ >= min_occupancy
+    letters = np.array([ord(c) for c in "ACGT"], dtype=np.uint8)
+    counts = np.stack([(m == L).sum(axis=0) for L in letters])   # 4 x width
+    best = counts.argmax(axis=0)
+    total = counts.sum(axis=0)
+    out = []
+    for j in range(m.shape[1]):
+        if not is_match[j]:
+            continue
+        if total[j] == 0:
+            out.append("N")
+            continue
+        top = counts[:, j].max()
+        if tie == "iupac" and (counts[:, j] == top).sum() > 1:
+            out.append(_iupac(counts[:, j] == top))
+        else:
+            out.append("ACGT"[best[j]])
+    return "".join(out), occ, is_match
+
+
+_IUPAC = {"AG": "R", "CT": "Y", "GT": "K", "AC": "M", "CG": "S", "AT": "W",
+          "CGT": "B", "AGT": "D", "ACT": "H", "ACG": "V", "ACGT": "N"}
+
+
+def _iupac(mask: np.ndarray) -> str:
+    key = "".join(b for b, k in zip("ACGT", mask) if k)
+    return _IUPAC.get(key, key if len(key) == 1 else "N")
+
+
+def trim_alignment(m: np.ndarray, min_occupancy: float = 0.5,
+                   ) -> tuple[int, int]:
+    """Columns [lo, hi) spanned by the well-occupied core.
+
+    Trims the ragged 5'/3' shoulders that a handful of over-long rows create,
+    without touching interior low-occupancy columns (those are real deletions).
+    """
+    occ = (m != ord("-")).mean(axis=0)
+    ok = np.flatnonzero(occ >= min_occupancy)
+    if not len(ok):
+        return 0, m.shape[1]
+    return int(ok[0]), int(ok[-1]) + 1

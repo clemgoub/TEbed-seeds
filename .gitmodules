@@ -1,0 +1,3 @@
+[submodule "vendor/dfam-curator"]
+	path = vendor/dfam-curator
+	url = https://github.com/Dfam-consortium/dfam-curator

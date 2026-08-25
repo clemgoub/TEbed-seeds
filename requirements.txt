@@ -1,0 +1,5 @@
+pandas<3
+numpy
+pyyaml
+pyarrow
+biopython
