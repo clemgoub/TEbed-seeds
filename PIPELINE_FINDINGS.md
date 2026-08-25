@@ -198,7 +198,7 @@ in the same clusters moved from 1,992 → 322 bp and 1,450 → 436 bp. Final
 provenance across the batch: `bed16` 499,476 rows / `clustermate` 144,157 /
 `deconvolved` 62,193 / `none` 141,287.
 
-**Slide home:** a stage-1.5 slide, "when the library consensus is the problem".
+**Slide home:** stage 1.5 slide (`d9_deconvolution.png`) — DONE.
 The strongest version of the slide is the 0.74% → 49.5% gap and the 494× row,
 plus the negative result: the tempting sequence-free detector does not work,
 and the thing that does work is *having the cluster* — which is the argument
@@ -269,8 +269,12 @@ see usually is. This is the first direct measurement that multi-tool agreement
 carries information about copy quality rather than merely about tool overlap,
 and it is the quantitative justification for the whole clustering premise.
 
-**Slide home:** a new stage-2 slide on pooling — the redundancy figure and the
-support/completeness table belong together.
+**Batch-level figures now on the slide** (12 clusters, gap-aware, not only cluster 62):
+redundancy mean **2.17x** (range 1.26–3.04); pooled support/completeness **1 tool
+108,884 loci at 5.9% · 2 tools 50,964 at 28.1% · 3 tools 43,214 at 54.0% · 4 tools
+18,255 at 67.1%** — the monotonic rise holds across the whole batch.
+
+**Slide home:** stage 2.1 slide (`d10_pooling.png`) — DONE.
 
 ---
 
@@ -282,11 +286,11 @@ type):
 
 | quantity | gap_aware − merge_always (median) | clusters where gap_aware is better |
 |---|---|---|
-| rebuilt consensus length | **−0.5 bp** | 4 better / 6 worse / 2 equal |
-| median seed depth | **+1.0** | 7 / 12 |
+| rebuilt consensus length | **0.0 bp** | 5 longer / 5 shorter / 2 equal |
+| median seed depth | **+0.5** | 6 / 12 |
 | deduplicated loci available | **+580** | **12 / 12** |
-| bridged (multi-fragment) rows in the seed | **−4** | **10 / 12** |
-| copies over 1.5× the modal consensus | **−9.5** | **10 / 12** |
+| bridged (multi-fragment) rows in the seed | **−4** | **11 / 12** |
+| copies over 1.5× the modal consensus | **−6** | **8 / 12** (4 tied, 0 worse) |
 
 **The test the plan expected to be decisive is not decisive.** Seed depth and
 rebuilt consensus length — RESUME step 4.6's stated criteria — do not separate
@@ -295,15 +299,22 @@ direction is not even consistent (4 vs 6). Whatever merge-always absorbs into
 its copies, the alignment and the consensus caller discard again.
 
 The modes separate cleanly on the secondary criteria, and gap-aware wins all
-three: it yields **more loci in every single cluster**, and in 10 of 12 it puts
-fewer bridged rows and fewer over-length copies into the seed.
+three: it yields **more loci in every single cluster** (12/12), puts fewer
+bridged rows into the seed in **11 of 12**, and fewer copies over 1.5× the modal
+consensus in **8 of 12** (tied in the other 4, never worse).
 
 **Decision: `gap_aware` confirmed as the default** — not because it builds a
 better consensus, but because it reaches the same consensus from cleaner, more
 numerous, less chimeric evidence. **This supersedes the "still to be confirmed
 at seed level" note in F3.**
 
-**Slide home:** stage 1.1, replacing the provisional wording. The honest framing
+*(Recomputed from `seed_mode_comparison.tsv` while building the deck: median consensus
+difference 0.0 bp on a 5/5/2 split, median depth +0.5 better in 6 of 12; bridged rows
+better in 11 of 12 and over-length copies in 8 of 12 (not 10/12 for either). The earlier
+−0.5 bp / +1.0 / 7-of-12 figures did not reproduce; the conclusion is unchanged and
+slightly stronger — depth and consensus length separate the modes even less.)*
+
+**Slide home:** stage 1.1, replacing the provisional wording — DONE. The honest framing
 is the interesting one: we expected depth to decide it, and depth had nothing
 to say.
 
@@ -329,8 +340,7 @@ a packet where the engines disagree is a packet where a curator's time is
 well spent. It costs nothing to record and is worth testing against the first
 batch of curator verdicts.
 
-**Slide home:** stage 2/3, as the argument for running both engines rather than
-picking one.
+**Slide home:** validation slide (`d12_validation.png`), lower half — DONE.
 
 ---
 
@@ -370,7 +380,7 @@ fails loudly, because it fails later, in someone else's pipeline.
 **ERROR** (`au_format`) — abbreviated first names are rejected. A spelled-out
 first name passes; an ORCID prefix downgrades the remaining INFO.
 
-**Slide home:** stage 3 (seed + lint) — "what a format checker cannot see".
+**Slide home:** stage 3 slide (`d11_seed_lint.png`) — DONE.
 
 ---
 
@@ -415,7 +425,7 @@ value exists in Dfam's vocabulary, not that it fits the sequence.
 3. Until then, `#=GF TP` should be read as "what the tools said", and that
    should be stated in the packet rather than implied.
 
-**Slide home:** the validation slide, as the counterweight — the rebuild works,
+**Slide home:** validation slide (`d12_validation.png`) — DONE. The counterweight: the rebuild works,
 and the label attached to it may still be wrong.
 
 **Every seed row checked against the assembly.** Across the 12-cluster batch

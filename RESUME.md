@@ -10,6 +10,14 @@ Branches: **`main`** is the prototype as it was handed over (one commit);
 
 ---
 
+## 0a. START HERE if you are picking this up now
+
+**`NEXT_INSTRUCTIONS.md`** carries CG's deck-review directives (2026-08-25) and
+supersedes the ordering below. Sections A and B of that file need no new inputs
+and should be done first; C and D wait on the REPET libraries and an ORCID
+respectively. Settled design decisions are in its §E — implement, do not
+re-litigate.
+
 ## 0. The headline
 
 **The project milestone is met: `stk lint`-clean Dfam seed alignments are being
