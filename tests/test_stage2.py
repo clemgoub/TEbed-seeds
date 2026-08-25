@@ -282,3 +282,31 @@ def test_verify_rows_tolerates_stockholm_gaps_in_the_row():
     res = stage2.verify_rows_against_genome(
         [("c1", 0, 8, "+")], ["ACGT....ACGT".replace("....", "")], FakeFa())
     assert res["all_verified"]
+
+
+# ------------------------------------------- over-assembly deconvolution (F4)
+def test_span_only_near_full_length_for_deconvolved_members():
+    """A member whose consensus is an over-assembly has repeat_start/repeat_end
+    in the multi-unit coordinate system of the collapsed entry. Keeping the
+    'both ends reached' test while swapping in the unit length mixes coordinate
+    systems -- measured 25.2% against a cross-tool truth of 49.5%, where
+    span-only gives 58.2% and the old behaviour gave 0.74%."""
+    from lhfseeds import stage1
+    # a copy covering unit 2 of a 3-unit 765 bp entry: 265 bp of consensus,
+    # but starting at 264, so it reaches NEITHER end of the collapsed entry
+    copies = pd.DataFrame([dict(cons_start=264.0, cons_end=529.0)])
+    assert not stage1.near_full_length(copies, 265.0).iat[0], \
+        "ends test cannot be satisfied in the collapsed coordinate system"
+    assert stage1.near_full_length(copies, 265.0, span_only=True).iat[0], \
+        "span-only recognises a full unit"
+    # and it still rejects a genuinely short copy
+    short = pd.DataFrame([dict(cons_start=264.0, cons_end=300.0)])
+    assert not stage1.near_full_length(short, 265.0, span_only=True).iat[0]
+
+
+def test_near_full_length_is_false_without_consensus_coordinates():
+    """EDTA carries none; flag, do not fake."""
+    from lhfseeds import stage1
+    copies = pd.DataFrame([dict(cons_start=np.nan, cons_end=np.nan)])
+    assert not stage1.near_full_length(copies, 265.0).iat[0]
+    assert not stage1.near_full_length(copies, float("nan")).iat[0]

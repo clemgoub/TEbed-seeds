@@ -204,11 +204,28 @@ def merge_copies(hits: pd.DataFrame, mode: str,
 
 
 def near_full_length(copies: pd.DataFrame, cons_len: float,
-                     span_frac=0.8) -> pd.Series:
-    """Both consensus ends reached (within 20 bp) and >=span_frac of length."""
+                     span_frac=0.8, span_only: bool = False) -> pd.Series:
+    """Both consensus ends reached (within 20 bp) and >=span_frac of length.
+
+    `span_only` drops the end-reaching test and asks only that the copy spans
+    span_frac of a unit. It is for members whose consensus was DECONVOLVED as
+    an over-assembly: their repeat_start/repeat_end refer to the multi-unit
+    coordinate system of the collapsed entry, so "reached both ends" is not a
+    meaningful question about a single unit, and asking it against the unit
+    length would pass almost everything.
+
+    Measured on the four confirmed over-assembled REPET families (10,229 hits),
+    against a cross-tool ground truth of 49.5% near-full-length taken from the
+    independent rm2 consensus of the same element:
+        own 764-771 bp consensus, ends test    0.74%   (the old behaviour, ~67x low)
+        unit length, ends test kept           25.2%    (wrong: mixed coordinate systems)
+        span-only against the unit length     58.2%    (closest to truth)
+    """
     if np.isnan(cons_len) or copies.cons_start.isna().all():
         return pd.Series(False, index=copies.index)
     span = (copies.cons_end - copies.cons_start) / cons_len
+    if span_only:
+        return span >= span_frac
     return (copies.cons_start <= 20) & (copies.cons_end >= cons_len - 20) & (span >= span_frac)
 
 

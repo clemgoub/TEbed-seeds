@@ -65,13 +65,52 @@ def main(argv=None):
                 continue
             hits_by_member[m] = h
             conslen[m] = stage1.consensus_length(h)
+        # --- over-assembly deconvolution (PIPELINE_FINDINGS F4) ---------------
+        # A member's library consensus can be several tandem units of the real
+        # element collapsed into one entry: cluster 62's REPET entries are
+        # 764/765 bp where rm2, pantera and edta all say 264-269. Judging those
+        # copies against their own consensus makes real copies look 71%
+        # truncated -- measured, 0.74% near-full-length against a cross-tool
+        # ground truth of 49.5%, an under-count of ~67x.
+        #
+        # The discriminator is the CROSS-TOOL ratio, not the shape of the
+        # coordinates. A coordinate-only detector (length commensurability plus
+        # block structure) was built and calibrated against a half-integer-k
+        # decoy null, which no tandem over-assembly can produce: real 70 vs
+        # decoy 74.7, ratio 0.94, p = 0.72 -- no measurable specificity. So the
+        # rule here uses only what the cluster provides, which is exactly what
+        # the cluster is for.
+        #
+        # Inherit the mate length; do NOT divide by a detected k. k is not
+        # identified by coordinates, and of 18 flagged families with
+        # length-carrying mates only 4 had L/mate ~ k -- for the other 14 the
+        # consensus was already SHORTER than their mates', so dividing would
+        # have compounded the error up to 5x.
+        deconvolved = {}
+        ratio_min = float(cfg.get("overassembly_min_ratio", 1.8))
+        lens = {m: v for m, v in conslen.items() if not np.isnan(v)}
+        for m, own in lens.items():
+            others = [v for k, v in lens.items() if k != m]
+            if len(others) < 2:
+                continue
+            mate = float(np.median(others))
+            if mate > 0 and own / mate >= ratio_min:
+                deconvolved[m] = dict(own=own, mate=mate,
+                                      ratio=round(own / mate, 3),
+                                      k_implied=round(own / mate, 1))
+                conslen[m] = mate
+                print(f"[stage1] cluster {cid}: {m} consensus {own:.0f} bp is "
+                      f"{own/mate:.2f}x its cluster-mates ({mate:.0f} bp) -- "
+                      f"treating as over-assembled, using the mate length",
+                      file=sys.stderr)
+
         mate_lookup = stage1.build_clustermate_conslen(
             repo, cluster_fams, chrom_sizes, conslen)
 
         all_copies = []
         for m, hits in hits_by_member.items():
             tool = m.split(":", 1)[0]
-            own_len = conslen[m]
+            own_len = conslen[m]   # deconvolved above if over-assembled
             use_hitid = tool == "repet" and hits.hit_id.notna().any()
             for mode in (["hit_id"] if use_hitid else ["merge_always", "gap_aware"]):
                 cp = stage1.merge_copies(
@@ -117,18 +156,24 @@ def main(argv=None):
                         cp = pd.concat(pieces, ignore_index=True)
                 else:
                     cp["cons_len"] = own_len
-                    cp["cons_len_source"] = "bed16"
+                    cp["cons_len_source"] = ("deconvolved" if m in deconvolved
+                                             else "bed16")
                 # full-length needs per-copy consensus coords, which an
                 # inheriting member does not have -- flag, do not fake
-                cp["is_full"] = (stage1.near_full_length(cp, own_len)
-                                 if not np.isnan(own_len)
-                                 else pd.Series(False, index=cp.index))
+                cp["is_full"] = (
+                    stage1.near_full_length(cp, own_len,
+                                            span_only=m in deconvolved)
+                    if not np.isnan(own_len)
+                    else pd.Series(False, index=cp.index))
                 cp["smitten_id"] = [stage1.smitten(cfg["assembly"], r)
                                     for r in cp.itertuples()]
                 all_copies.append(cp)
 
         copies = pd.concat(all_copies, ignore_index=True)
         copies.to_csv(cdir / "copies.tsv", sep="\t", index=False)
+        if deconvolved:
+            pd.DataFrame([dict(member=m, **v) for m, v in deconvolved.items()]
+                         ).to_csv(cdir / "deconvolved.tsv", sep="\t", index=False)
         for mode in ["merge_always", "gap_aware", "hit_id"]:
             sub = copies[copies.merge_mode == mode]
             if not len(sub):
