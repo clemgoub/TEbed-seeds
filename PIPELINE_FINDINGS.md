@@ -168,13 +168,19 @@ while leaving the pipeline consequence intact. Three independent lines:
    `rnd-1_family-286` aligns to `G1303-Map20` at **positions 2–269, 98.5% over
    268 bp — and nowhere else**. Against the sibling entry `G1473-Map8` it aligns
    once at **positions 497–764, 96.6%**. One copy each, at opposite ends.
-3. **The other ~495 bp is a different, real TE.** `G1303-Map20`'s positions
-   270–764 match rm2 `rnd-5_family-6390#SINE/5S-Deu-L2` at **97.4% over 495 bp**
-   — a 5S-derived SINE. The same cassette appears in at least six further REPET
-   entries (`G1329-Map5`, `G339-Map20`, `G1058-Map5`, `G926-Map14`,
-   `G652-Map5`) at 99%+ identity and at varying offsets. And `G1473-Map8`'s
-   non-element half is the **reverse complement** of `G1303-Map20`'s
-   (98.99% over 496 bp).
+3. **The other ~496 bp is a different, real TE — a second rm2 family.**
+   `G1303-Map20`'s positions 270–764 match rm2 **`rnd-1_family-608`** at
+   **98.8% over 492 bp** (best hit by bitscore), and a near-identical relative
+   `rnd-5_family-6390#SINE/5S-Deu-L2` at 97.4%, so the cassette is a
+   5S-derived SINE. The arithmetic is exact: **496 + 269 = 765**. The same
+   cassette appears in at least six further REPET entries (`G1329-Map5`,
+   `G339-Map20`, `G1058-Map5`, `G926-Map14`, `G652-Map5`) at 99%+ identity and
+   at varying offsets. And `G1473-Map8`'s non-element half is the **reverse
+   complement** of `G1303-Map20`'s (98.99% over 496 bp).
+
+   *Independently confirmed by CG in the genome browser* at
+   `OX637613.1:25,978,734-25,979,682`: the two REPET entries are
+   `rnd-1_family-608` + `rnd-1_family-286` fused, in opposite orders.
 
 **What REPET actually did:** a ~265 bp TIR MITE and a ~495 bp 5S-derived SINE
 insert next to each other frequently, and REPET built library entries that
@@ -201,9 +207,17 @@ provenance value `cons_len_source = deconvolved` keeps its meaning ("this
 member's length was overridden by cross-tool consensus"); only the mechanism
 named in the docs changes.
 
-**A better detector is now obvious and is the real §C3:** a library consensus
-whose segments match **two different families of another tool**, with a sharp
-boundary between them, is a chimera. That is a sequence test over the libraries,
+**Chimeras and tandem arrays must be counted separately, and only sequence can
+separate them.** The coordinate-only phase detector **conflates** the two: a
+496 bp cassette fused to a 269 bp element gives L/median_copy ≈ 3 and an
+endpoint mode near L/3, which is indistinguishable from a genuine 3-unit array
+on coordinates alone. That, not merely low power, is why the decoy null came
+back at p = 0.72.
+
+**The real §C3 detector:** a library consensus whose segments align end-to-end
+to **two or more different shorter consensi covering disjoint parts of its
+length** is a chimera; internal same-strand repeat structure is a tandem
+over-assembly. That is a sequence test over the libraries,
 it needs no coordinates, and unlike the coordinate screen it targets the
 phenomenon that actually occurs. Four of the five clusterable tools now have a
 goby library (rm2, edta, repet, fastltr — pantera is still missing), so a

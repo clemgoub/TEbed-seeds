@@ -98,20 +98,35 @@ Context: four REPET entries are **confirmed** over-assemblies from coordinates
 alone, but the sequence-free detector has **0/8 sensitivity** on
 sequence-verified rm2 cases, so no per-tool rate can be claimed. See F4.
 
-**Task C1 — self-align each suspect consensus** (blastn `-word_size 7 -dust no`,
-or a dotplot). For the 764/765 bp entries, three tandem units predict
-off-diagonal SAME-strand HSPs at roughly ±255 and ±510 bp. Opposite-strand
-off-diagonals would instead mean a palindrome and would overturn the
-coordinate-based reading — report that honestly if it happens.
+**CORRECTED 2026-08-25 — the mechanism is a CHIMERA, not tandem units.** CG
+checked the locus in the genome browser and the tandem reading was wrong; see
+F4's correction. Co-annotation identity per consensus block shows
+`G1473-Map8` = rm2 `rnd-1_family-608` (496 bp) + rm2 `rnd-1_family-286`
+(269 bp), and 496 + 269 = 765. `G1303-Map20` is the same pair fused in the
+opposite order. Worked example, matching the browser:
+`OX637613.1:25,978,734-25,979,682`, table at
+`runs/<asm>/examples/overassembly_locus_example.tsv`.
+
+**Task C1 — align each suspect consensus against its CLUSTER-MATE consensi**
+(not against itself). The chimera predicts two non-overlapping, near-full-length
+HSPs: `rnd-1_family-608` matching positions ~1-496 and `rnd-1_family-286`
+matching ~497-765, each at high identity over most of the mate's length. A
+self-alignment predicting internal same-strand repeats at ±255 is the TANDEM
+hypothesis and should now be expected to FAIL — run it anyway as the control,
+because if it succeeds the correction is wrong.
 
 **Task C2 — align the long consensus against the short cluster-mates**
 (rm2 `rnd-1_family-286` 269 bp, pantera `Unknown_572-fGobNig` 264 bp).
 Over-assembly predicts the short one matching the long one ~3 times, at the
 block boundaries (starts 2/264/539, ends 262/511/765).
 
-**Task C3 — per-tool over-assembly rate, from sequence.** Scan every library
-consensus for internal same-strand tandem structure. This is the number F4
-currently cannot state. Report per tool with the detection criteria explicit.
+**Task C3 — per-tool over-assembly rate, from sequence.** Two distinct
+phenomena, so report them separately: (a) CHIMERAS — a consensus that aligns
+end-to-end to two or more *different* shorter consensi covering disjoint parts
+of its length; (b) TANDEM over-assemblies — internal same-strand repeat
+structure. This is the number F4 currently cannot state. Note that the
+coordinate-only phase detector conflates the two (496 ≈ 2 x 250 mimics a k=3
+array), so sequence is required to separate them.
 
 **Task C4 — validate the 1.8 ratio threshold.** With sequence truth available,
 check the coordinate-only rule's sensitivity and specificity, and whether 1.8 is
