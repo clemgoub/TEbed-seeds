@@ -36,7 +36,7 @@ PYTHONPATH=. .venv/bin/python -m lhfseeds.run_stage0 --linkage both   # ~80 s
 PYTHONPATH=. .venv/bin/python -m lhfseeds.run_stage1 --top 12         # ~13 min
 PYTHONPATH=. .venv/bin/python -m lhfseeds.run_stage2 --top 12 \
       --modes gap_aware,merge_always --threads 4                      # ~6 min
-PYTHONPATH=. .venv/bin/python -m pytest tests/ -q                     # 15 tests
+PYTHONPATH=. .venv/bin/python -m pytest tests/ -q                     # 25 tests
 ```
 
 `.venv/` is a Python 3.13 venv (`requirements.txt`; pandas is pinned `<3`).
@@ -84,8 +84,8 @@ New code: `lhfseeds/fasta.py`, `stage2.py`, `run_stage2.py`, `stockholm.py`;
 
 ## 3. Things found that change the design
 
-Full write-ups with numbers are in `PIPELINE_FINDINGS.md` F7–F11. The four that
-change how the pipeline works:
+Full write-ups with numbers are in `PIPELINE_FINDINGS.md` F4 and F7–F11.
+The ones that change how the pipeline works:
 
 **Pooling must deduplicate by locus (F7).** A cluster's members are different
 tools describing the same element, so they annotate the same loci over and
@@ -111,20 +111,45 @@ resolving in opposite directions. Also: the placeholder `au_string`
 abbreviated first names) — it is now `"Clement Goubert"`, and an ORCID prefix
 would clear the last INFO.
 
-**Cluster ids were not reproducible.** Both linkages accumulate through Python
-sets, whose iteration order depends on `PYTHONHASHSEED`. Two stage-0 runs over
-identical inputs produced the same clusters in a different order, so
-`cluster_id` — a positional index — silently pointed at a different family.
-Measured: cluster 62 became cluster 292 on a re-run, and id 62 came back
-holding an unrelated family, with no error raised. Clusters are now emitted in
-a deterministic order (verified byte-identical across three hash seeds) and
-carry a content-addressed `cluster_key`.
+**Two hash-order bugs, and the second one moved a scientific value.** Python
+set iteration depends on `PYTHONHASHSEED`, and this code accumulated through
+sets in two places.
 
-**An over-assembled member consensus contaminates the seed.** Cluster 62's
-seed was admitting 495 and 642 bp copies of a ~265 bp element, because those
-copies are REPET's, and REPET's consensus for them is 764 bp — so the 1.5×
-runaway cap was 1,146 bp. A copy is now judged against the **cluster's modal**
-consensus length rather than its own member's. See §5.
+*Stage 0:* two runs over identical inputs produced the same clusters in a
+different order, so `cluster_id` — a positional index — silently pointed at a
+different family. Measured: cluster 62 became cluster 292 on a re-run, and id
+62 came back holding an unrelated family, with no error raised. Every seed
+packet keyed by id would have been invalidated. Clusters are now emitted in a
+deterministic order (verified byte-identical across three hash seeds) and carry
+a content-addressed `cluster_key`. **Use `cluster_key`, not `cluster_id`, to
+refer to a cluster across runs** — the ids in older notes and in the first
+draft of F4 are stale.
+
+*Stage 1:* `build_clustermate_conslen` paints every mate's consensus length
+into one shared array, so at a contested base whoever paints last wins — and
+the caller passed a set. Measured across two runs with no other change: one
+EDTA member's inherited consensus length moved from **381 bp to 1,755 bp**.
+That is the number near-full-length is judged against. Members are now painted
+in order of increasing evidence, so the best-supported mate wins a contested
+base — deterministic, and the tie-break is a rule rather than an accident.
+
+**Open design question this exposes:** when two cluster-mates genuinely
+disagree about the element length at the same locus, "most hits wins" is a
+defensible tie-break but it is a choice, not a derivation. Worth revisiting.
+
+**An over-assembled member consensus wrecks the near-full-length judgement.**
+Cluster 62's seed was admitting 495 and 642 bp copies of a ~265 bp element,
+because REPET's consensus for them is 764 bp, so the 1.5× runaway cap was
+1,146 bp. Two fixes: a copy is judged against the **cluster's modal** consensus
+length in stage 2, and stage 1 now **deconvolves** a member whose own consensus
+is ≥1.8× the median of its agreeing mates, recording
+`cons_len_source = deconvolved`.
+
+Effect on the 12-cluster batch: **6 members deconvolved, 0 abstentions**, and
+near-full-length counts move by **24× to 494×** (F4 has the table). The largest
+case is **rm2**, not REPET — `rnd-4_family-1870`, 1,992 bp against mates at
+322 bp. Over-assembly is not a REPET quirk, and the first pass of this
+investigation was wrong to conclude it was.
 
 ---
 

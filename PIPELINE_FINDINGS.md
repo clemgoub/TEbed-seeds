@@ -168,11 +168,41 @@ sequence-verified dimer) has exactly one length-carrying mate, so a median over
 mates would have been a single opinion, not a consensus. Abstentions are
 recorded in `deconvolved.tsv` alongside the substitutions.
 
+### Measured effect of turning it on — and it is not a REPET-only problem
+
+Running the rule over the 12-cluster batch: **6 members deconvolved, 0
+abstentions**. Near-full-length before → after, same copies, same gate:
+
+| member | own consensus → mate reference | near-full-length | factor |
+|---|---|---|---|
+| `rm2:rnd-4_family-1870` (gap_aware) | 1,992 → 322 bp | 0.06% → **29.06%** | **494×** |
+| `rm2:rnd-4_family-1870` (merge_always) | 1,992 → 322 bp | 0.06% → 32.68% | 509× |
+| `repet:…G876-Map3` | 655 → 298 bp | 0.66% → 54.44% | 82× |
+| `repet:…G1303-Map20` | 764 → 266 bp | 1.44% → 64.66% | 45× |
+| `repet:…G1473-Map8` | 765 → 266 bp | 1.42% → 63.65% | 45× |
+| `repet:…G1747-Map3` | 997 → 488 bp | 2.00% → 63.03% | 32× |
+| `repet:…G2411-Map5` | 1,450 → 436 bp | 2.70% → 65.45% | 24× |
+
+**The largest single case is rm2, not REPET** — `rnd-4_family-1870` at 1,992 bp
+against cluster-mates at 322 bp, a ratio of 6.19. This matters because the
+first pass of this investigation concluded that "rm2, pantera and fastltr show
+no evidence at all", on the strength of a coordinate-only screen. That
+conclusion was wrong twice over: refuted from the library side (68 of 2,550 rm2
+consensi carry internal same-strand tandem structure) and now refuted from the
+pipeline side, where the cross-tool ratio finds an rm2 entry with the biggest
+effect in the batch. **Over-assembly is not a REPET quirk.**
+
+The knock-on effect is larger than the seven rows above, because members that
+*inherit* a length from cluster-mates inherit the corrected one: EDTA members
+in the same clusters moved from 1,992 → 322 bp and 1,450 → 436 bp. Final
+provenance across the batch: `bed16` 499,476 rows / `clustermate` 144,157 /
+`deconvolved` 62,193 / `none` 141,287.
+
 **Slide home:** a stage-1.5 slide, "when the library consensus is the problem".
-The strongest version of the slide is the 0.74% → 49.5% gap, plus the negative
-result: the tempting sequence-free detector does not work, and the thing that
-does work is *having the cluster* — which is the argument for the whole
-pipeline.
+The strongest version of the slide is the 0.74% → 49.5% gap and the 494× row,
+plus the negative result: the tempting sequence-free detector does not work,
+and the thing that does work is *having the cluster* — which is the argument
+for the whole pipeline.
 
 ---
 
