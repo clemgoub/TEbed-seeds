@@ -40,7 +40,7 @@ INVARIANT_MODE = "hit_id"
 
 
 def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
-              cfg: dict) -> dict:
+              cfg: dict, engine: str = "mafft") -> dict:
     """Write the Stockholm seed and lint it.
 
     `stk lint` is a SOFT gate by design (PLAN_A): a failing packet still goes to
@@ -53,21 +53,20 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
             for r in fin["matrix"]]
     tp = lookup_tp(cfg)
     meta = {
-        "ID": f"TEbedSeeds_c{cluster_id:05d}_{mode}",
+        "ID": f"TEbedSeeds_c{cluster_id:05d}_{mode}_{engine}",
         "DE": (f"Consensus rebuilt from {len(ids)} genomic copies of "
                f"multi-tool cluster {cluster_id} ({mode})")[:80],
         "AU": cfg.get("au_string", ""),
         "OC": cfg.get("taxon", ""),
         "SQ": len(ids),
-        "BM": f"TEbed-seeds {cfg.get('contract_version', '?')}; "
-              f"{cfg.get('consensus_engine', 'mafft')}",
+        "BM": f"TEbed-seeds {cfg.get('contract_version', '?')}; {engine}",
         "CC": [f"Rebuilt from track data; provenance in packet.json.",
                f"Merge mode {mode}; one representative per deduplicated locus."],
         "RF": stockholm.rf_line(fin["consensus"], fin["is_match"]),
     }
     if tp:
         meta["TP"] = tp
-    stk_path = outdir / "seed.stk"
+    stk_path = outdir / f"seed.{engine}.stk"
     stockholm.write_stockholm(stk_path, [stockholm.format_record(ids, rows, meta)])
 
     stk_bin = Path(cfg.get("stk_bin",
@@ -78,16 +77,17 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
         return res
     # rewrite RF with Dfam's own consensus caller so rf_consensus_mismatch
     # compares like with like, then lint the file that will actually be shipped
-    if stockholm.update_consensus(stk_path, outdir / "seed.rf.stk", stk_bin):
+    tmp_rf = outdir / f"seed.{engine}.rf.stk"
+    if stockholm.update_consensus(stk_path, tmp_rf, stk_bin):
         stk_path.unlink()
-        (outdir / "seed.rf.stk").rename(stk_path)
+        tmp_rf.rename(stk_path)
     res["tier1"] = stockholm.lint(stk_path, stk_bin, no_network=True)
     genome = cfg.get("assembly_fasta")
     if genome:
         res["genome"] = stockholm.lint(stk_path, stk_bin,
                                        genome=Path(genome).expanduser(),
                                        no_network=True)
-    (outdir / "lint.txt").write_text(
+    (outdir / f"lint.{engine}.txt").write_text(
         res["tier1"]["output"] + "\n" + res.get("genome", {}).get("output", ""))
     return res
 
@@ -164,43 +164,91 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
     if len(bad):
         raise AssertionError(f"flank accounting failed for {len(bad)} records")
 
-    aln_info, cons, occ_stats, lint_res = {}, "", {}, {}
-    n_aln = 0
+    coord_map = {stage2.seq_id(cfg["assembly"], f.chrom, int(f.start),
+                               int(f.end), f.strand):
+                 (f.chrom, int(f.start), int(f.end), f.strand)
+                 for f in frags.itertuples()}
     min_occ = float(seedcfg.get("min_match_occupancy", 0.5))
-    if len(recs) >= 2:
-        aln_info = stage2.mafft(outdir / "copies.fa", outdir / "aln.fa",
-                                threads=threads)
-        arecs = stage2.read_fasta(outdir / "aln.fa")
-        coord_map = {r.seq_id: (r.chrom, int(r.start), int(r.end), r.strand)
-                     for r in frags.assign(seq_id=[
-                         stage2.seq_id(cfg["assembly"], f.chrom, int(f.start),
-                                       int(f.end), f.strand)
-                         for f in frags.itertuples()]).itertuples()}
-        fin = stage2.finalize_alignment(
-            arecs, coord_map, min_occupancy=min_occ,
-            min_row_bp=int(seedcfg.get("min_frag_bp", stage2.MIN_FRAG_BP)))
-        m, is_match = fin["matrix"], fin["is_match"]
-        cons = fin["consensus"]
-        n_aln = int(m.shape[0])
-        stage2.write_fasta(
-            [(f"cluster_{cluster_id:05d}_{mode}_consensus", cons)],
-            outdir / "consensus.fa")
-        pd.DataFrame(fin["dropped"]).to_csv(outdir / "dropped_rows.tsv",
-                                            sep="\t", index=False)
-        # Depth is measured over MATCH columns only.  Averaging over the whole
-        # trimmed span mixes in insert columns that exist because one or two
-        # rows carry a long insertion, and reported a median depth of 6 for an
-        # alignment whose match columns are 79 deep.
-        depth = (m[:, is_match] != ord("-")).sum(axis=0)
-        occ_stats = dict(
-            aln_width=int(m.shape[1]), n_match_columns=int(is_match.sum()),
-            median_depth=int(np.median(depth)), min_depth=int(depth.min()),
-            max_depth=int(depth.max()),
-            frac_cols_depth_ge3=float((depth >= 3).mean()),
-            n_rows_mafft_flipped=fin["n_flipped"],
-            n_rows_dropped=len(fin["dropped"]),
-        )
-        lint_res = emit_seed(outdir, cluster_id, mode, fin, cfg)
+    min_row = int(seedcfg.get("min_frag_bp", stage2.MIN_FRAG_BP))
+    engines = cfg.get("engines") or [cfg.get("consensus_engine", "mafft")]
+    primary = cfg.get("consensus_engine", "mafft")
+
+    eng_results: dict = {}
+    cons, occ_stats, lint_res, aln_info = "", {}, {}, {}
+    n_aln = 0
+    for eng in engines:
+        if len(recs) < 2:
+            continue
+        try:
+            if eng == "mafft":
+                info = stage2.mafft(outdir / "copies.fa", outdir / "aln.fa",
+                                    threads=threads)
+                arecs = stage2.read_fasta(outdir / "aln.fa")
+                rc = stage2.row_coords_mafft(arecs, coord_map)
+                extra = dict(n_rows_mafft_flipped=sum(
+                    1 for i, _ in arecs if i.startswith("_R_")))
+            elif eng == "refiner":
+                rbin = Path(cfg.get("refiner_bin",
+                                    "vendor/refiner/bin/Refiner")).expanduser()
+                if not rbin.exists():
+                    eng_results[eng] = dict(error=f"Refiner not found at {rbin}; "
+                                            "run tools/setup_refiner.sh")
+                    continue
+                rres = stage2.refiner(outdir / "copies.fa", rbin, threads=threads,
+                                      workdir=outdir / "refiner_work")
+                arecs = rres["records"]
+                rc, drop_unparsed = [], []
+                keep = []
+                for rid, row in arecs:
+                    g = stage2.parse_refiner_id(rid, coord_map)
+                    if g is None:
+                        drop_unparsed.append(rid)
+                        continue
+                    rc.append(g)
+                    keep.append((rid, row))
+                arecs = keep
+                stage2.write_fasta(arecs, outdir / "aln.refiner.fa")
+                info = dict(avg_kimura=rres["avg_kimura"],
+                            refiner_consensus_len=len(rres["consensus"]),
+                            n_unparsed_ids=len(drop_unparsed))
+                extra = dict(avg_kimura=rres["avg_kimura"])
+            else:
+                eng_results[eng] = dict(error=f"unknown engine {eng}")
+                continue
+
+            fin = stage2.finalize_alignment(arecs, rc, min_occupancy=min_occ,
+                                            min_row_bp=min_row)
+            m, is_match = fin["matrix"], fin["is_match"]
+            depth = (m[:, is_match] != ord("-")).sum(axis=0)
+            stage2.write_fasta(
+                [(f"cluster_{cluster_id:05d}_{mode}_{eng}_consensus",
+                  fin["consensus"])], outdir / f"consensus.{eng}.fa")
+            lr = emit_seed(outdir, cluster_id, mode, fin, cfg, engine=eng)
+            st = dict(
+                engine=eng, alignment_rows=int(m.shape[0]),
+                aln_width=int(m.shape[1]), n_match_columns=int(is_match.sum()),
+                rebuilt_consensus_len=len(fin["consensus"]),
+                median_depth=int(np.median(depth)) if len(depth) else 0,
+                min_depth=int(depth.min()) if len(depth) else 0,
+                max_depth=int(depth.max()) if len(depth) else 0,
+                frac_cols_depth_ge3=float((depth >= 3).mean()) if len(depth) else 0.0,
+                n_rows_dropped=len(fin["dropped"]), lint=lr, info=info, **extra)
+            eng_results[eng] = st
+            pd.DataFrame(fin["dropped"]).to_csv(
+                outdir / f"dropped_rows.{eng}.tsv", sep="\t", index=False)
+            if eng == primary or not cons:
+                cons = fin["consensus"]
+                n_aln = int(m.shape[0])
+                aln_info = info
+                lint_res = lr
+                occ_stats = {k: v for k, v in st.items()
+                             if k not in ("engine", "lint", "info",
+                                          "alignment_rows",
+                                          "rebuilt_consensus_len")}
+        except Exception as exc:                       # engine failure is data
+            eng_results[eng] = dict(error=f"{type(exc).__name__}: {exc}")
+            print(f"[stage2] cluster {cluster_id} {mode} {eng}: FAILED {exc}",
+                  file=sys.stderr)
 
     realized_full = int((sample.sampled_as == "full").sum())
     # Over-extension guard (PLAN_A 4.7): compare against the MEDIAN member
@@ -244,6 +292,7 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
         possible_overextension=overext,
         lint=lint_res,
         mafft=aln_info,
+        engines=eng_results,
         **occ_stats,
         elapsed_s=round(time.time() - t0, 1),
     )

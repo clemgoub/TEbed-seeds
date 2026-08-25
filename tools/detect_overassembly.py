@@ -112,28 +112,49 @@ fastltr, repet):
     (a) and (b)                      151  ( 4.1%)        163  ( 4.5%)
     (a) and (b) and (c)               69  ( 1.9%)         55  ( 1.5%)
 
-So (a)+(b) as briefed has NO specificity for integer k -- the decoy fires
-slightly more often than the real thing.  Adding (c) produces the first real,
-if modest, excess (69 vs 55; implied FDR ceiling ~80% for the integer-k
-claim).
+Those two columns are NOT directly comparable -- the real criterion gets four
+chances (k = 2,3,4,5), the decoy three.  Per single k value the counts are:
 
-WHAT THE FLAG SUPPORTS: "this consensus is block-structured, no copy realises
-its advertised length, and the length actually realised is about L/k."  That
-is enough for the pipeline consequence (do not use cons_len for the
-near-full-length judgement).
-WHAT IT DOES NOT SUPPORT ON ITS OWN: that k is exactly an integer, i.e. that
-the entry is k tandem units rather than, say, a chimera of two unrelated
-elements joined at a position that happens to be commensurate with the copy
-length.  Distinguishing those needs the library SEQUENCE (self-alignment:
-tools/overassembly_seqtest.sh).  Downstream code should therefore prefer the
-MEASURED unit length (cluster-mate inheritance) over dividing by the detected
-k -- see the Part C recommendation.
+    tool      k=2  k=2.5  k=3  k=3.5  k=4  k=4.5  k=5   tested
+    rm2         3      5    6      6    6     11    8     1962
+    pantera     0      2    1      2    0      1    1      431
+    fastltr     0      0    0      0    0      0    0       87
+    repet       6      7   12     10   11     12   16     1170
+
+Scaling the decoy to four k values, the matched comparison is:
+
+    tool      real(k=2..5)   decoy(scaled)   ratio   P(>=real | Pois(decoy))
+    rm2                 23            29.3    0.78                     0.90
+    pantera              2             6.7    0.30                     0.99
+    fastltr              0             0.0       -                        -
+    repet               45            38.7    1.16                     0.17
+    ALL                 70            74.7    0.94                     0.72
+
+*** THE HONEST RESULT: there is NO significant excess of integer-k structure
+over non-integer-k structure in any tool.  The coordinate-only criterion --
+(a) and (b) as briefed, and even with (c) added -- has NO measurable
+specificity for tandem over-assembly.  Its 69 flags are a SCREEN, not a
+finding.  Do not quote a per-tool over-assembly RATE from this column. ***
+
+WHAT THE FLAG DOES SUPPORT: "this consensus is block-structured, no copy
+realises its advertised length, and the length actually realised is ~L/k."
+That alone justifies not using cons_len for the near-full-length judgement.
+WHAT IT DOES NOT SUPPORT: that the entry is k tandem units rather than a
+chimera cut at a commensurate position, an entry built from fragments, or a
+family with one internal recombination hotspot.
+
+Two things DO discriminate, and both are implemented / provided:
+  * CROSS-TOOL: annotate_with_clusters() -- an over-assembly is an entry whose
+    length is ~k TIMES what independent tools give the same element.  Measured:
+    of 18 flags with length-carrying stage-0 cluster-mates, exactly 4 confirm.
+  * SEQUENCE: tools/overassembly_seqtest.sh -- a k-unit array must show a long
+    same-strand self-alignment HSP at offset ~L/k.
 
 boundary_support reports how many of the k-1 internal boundaries carry >= 5%
 of internal endpoints.  Both known positives are single-boundary (each of the
-two redundant REPET entries populates a different one of the two boundaries of
-the same 3-unit array), so multi-boundary support is a stricter claim, not a
-prerequisite.
+two redundant REPET entries in cluster 62 populates a different one of the two
+boundaries of the same 3-unit array), so multi-boundary support is a stricter
+claim, not a prerequisite -- and it does not rescue specificity either.
 
 =============================================================================
 GUARDS
@@ -491,13 +512,16 @@ def per_tool_table(all_df: pd.DataFrame, untestable: dict) -> pd.DataFrame:
             modal_k=int(fl.k.mode().iat[0]) if len(fl) else 0,
             median_cons_len=float(fl.cons_len.median()) if len(fl) else float("nan"),
             median_unit_len=float(fl.unit_len.median()) if len(fl) else float("nan"),
-            n_multi_boundary=int((fl.boundary_support >= 2).sum()) if len(fl) else 0))
+            n_multi_boundary=int((fl.boundary_support >= 2).sum()) if len(fl) else 0,
+            n_confirmed=(int((fl.verdict == "confirmed_over_assembly").sum())
+                         if len(fl) and "verdict" in fl else 0)))
     for tool, why in untestable.items():
         rows.append(dict(tool=tool, status=why, n_families_bed=0,
                          n_families_tested=0, n_flagged=0,
                          frac_flagged=float("nan"), modal_k=0,
                          median_cons_len=float("nan"),
-                         median_unit_len=float("nan"), n_multi_boundary=0))
+                         median_unit_len=float("nan"), n_multi_boundary=0,
+                         n_confirmed=0))
     return pd.DataFrame(rows)
 
 
@@ -513,6 +537,9 @@ def main(argv=None):
     ap.add_argument("--decoy", action="store_true",
                     help="also evaluate the half-integer decoy null and print "
                          "the specificity table")
+    ap.add_argument("--clusters", default=None,
+                    help="stage-0 candidates_<linkage>.tsv; confirms each flag "
+                         "against cluster-mate consensus lengths")
     args = ap.parse_args(argv)
 
     bed_dir = Path(args.bed_dir).expanduser()
@@ -544,8 +571,23 @@ def main(argv=None):
             decoy_frames.append(scan_tool(tool, bed, PARAMS, cache, sub,
                                           k_range=DECOY_K))
 
-    all_df = (pd.concat(frames, ignore_index=True)[OUT_COLS]
-              if frames else pd.DataFrame(columns=OUT_COLS))
+    base = ([c for c in OUT_COLS if c not in
+             ("cluster_id", "n_mates_with_len", "mate_median_cons_len",
+              "L_over_mate", "unit_over_mate", "verdict")])
+    all_df = (pd.concat(frames, ignore_index=True)[base]
+              if frames else pd.DataFrame(columns=base))
+    if args.clusters:
+        all_df = annotate_with_clusters(all_df, Path(args.clusters).expanduser())
+        v = all_df.loc[all_df.flag, "verdict"].value_counts()
+        print(f"[overassembly] cross-tool confirmation vs {args.clusters}:",
+              file=sys.stderr)
+        for kk, vv in v.items():
+            print(f"    {kk:28s} {vv}", file=sys.stderr)
+    else:
+        for c in OUT_COLS:
+            if c not in all_df.columns:
+                all_df[c] = np.nan if c != "verdict" else ""
+    all_df = all_df[OUT_COLS]
     out = Path(args.out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
     all_df.sort_values(["flag", "phase_enrich"], ascending=False).to_csv(
@@ -560,13 +602,19 @@ def main(argv=None):
         n_t = int((~all_df.reason.isin(REJECT_REASONS)).sum())
         print(f"\n[overassembly] DECOY NULL (k' in {DECOY_K}) over {n_t} "
               f"testable families:", file=sys.stderr)
-        print(f"  real  k in {PARAMS.k_range}: {int(all_df.flag.sum())} flagged "
-              f"({all_df.flag.sum()/max(n_t,1):.4f})", file=sys.stderr)
-        print(f"  decoy k' non-integer      : {int(dd.flag.sum())} flagged "
-              f"({dd.flag.sum()/max(n_t,1):.4f})", file=sys.stderr)
-        print(f"  implied FDR ceiling for the integer-k claim: "
-              f"{dd.flag.sum()/max(int(all_df.flag.sum()),1):.2f}",
+        real = int(all_df.flag.sum())
+        # the real criterion gets len(k_range) chances, the decoy len(DECOY_K):
+        # scale the decoy so the comparison is matched.
+        scaled = float(dd.flag.sum()) * len(PARAMS.k_range) / len(DECOY_K)
+        print(f"  real  k in {PARAMS.k_range}: {real} flagged "
+              f"({real/max(n_t,1):.4f})", file=sys.stderr)
+        print(f"  decoy k' non-integer      : {int(dd.flag.sum())} flagged; "
+              f"scaled to {len(PARAMS.k_range)} k values = {scaled:.1f}",
               file=sys.stderr)
+        print(f"  real/decoy ratio = {real/max(scaled,1e-9):.2f}  "
+              f"(1.00 means NO specificity for integer k -- the flags are a "
+              f"screen, not a finding; confirm with --clusters or with "
+              f"tools/overassembly_seqtest.sh)", file=sys.stderr)
     return 0
 
 

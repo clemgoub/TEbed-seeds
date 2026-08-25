@@ -308,14 +308,24 @@ def mafft(in_fa: Path, out_fa: Path, threads: int = 0,
     return dict(cmd=" ".join(cmd), stderr_tail=p.stderr[-500:])
 
 
+_GAP_CHARS = str.maketrans({".": "-", "_": "-", "~": "-"})
+
+
 def msa_matrix(recs: list[tuple[str, str]]) -> tuple[list[str], np.ndarray]:
-    """(ids, uint8 matrix) -- MAFFT lowercases reversed rows and may prefix
-    '_R_' on ids it flipped; normalise both."""
+    """(ids, uint8 matrix), gap characters normalised to '-'.
+
+    Stockholm permits four gap characters and different tools pick different
+    ones: MAFFT writes '-', Refiner and Dfam write '.'.  Treating only '-' as a
+    gap made every Refiner column look fully occupied, so trimming did nothing,
+    every column became a match column, and the "consensus" came out as the
+    full alignment width (349 bp against Refiner's own 267).
+    MAFFT also lowercases rows it reversed and prefixes '_R_' on their ids.
+    """
     ids = [i[3:] if i.startswith("_R_") else i for i, _ in recs]
     w = max(len(s) for _, s in recs)
     m = np.full((len(recs), w), ord("-"), dtype=np.uint8)
     for i, (_, s) in enumerate(recs):
-        a = np.frombuffer(s.upper().encode(), dtype=np.uint8)
+        a = np.frombuffer(s.upper().translate(_GAP_CHARS).encode(), dtype=np.uint8)
         m[i, :len(a)] = a
     return ids, m
 
@@ -378,69 +388,164 @@ def _flip(strand: str) -> str:
     return "-" if strand == "+" else "+"
 
 
-def finalize_alignment(recs: list[tuple[str, str]], coords: dict,
+def row_coords_mafft(recs, coords: dict) -> list:
+    """Genomic interval + orientation of each MAFFT row AS WRITTEN.
+
+    MAFFT --adjustdirectionaccurately reverse-complements rows it judges
+    backwards and marks them '_R_'.  Such a row holds the opposite strand from
+    the one its identifier named, so the orientation recorded here flips with
+    it (measured: 77 of 100 rows in cluster 540).
+    """
+    out = []
+    for rid, _ in recs:
+        flipped = rid.startswith("_R_")
+        chrom, s, e, strand = coords[rid[3:] if flipped else rid]
+        st = norm_strand(strand)
+        out.append((chrom, s, e, _flip(st) if flipped else st))
+    return out
+
+
+def finalize_alignment(recs: list[tuple[str, str]], row_coords: list,
                        min_occupancy: float = 0.5, min_row_bp: int = 30,
                        max_iter: int = 4) -> dict:
-    """Trim, drop rows that survive the trim empty, and RETAG every id.
+    """Trim, drop rows left empty by the trim, and RETAG every identifier.
 
-    Two things make the naive path wrong, and `stk lint --genome` catches both:
+    `row_coords[i]` is the genomic interval and orientation of row i AS THE ROW
+    IS WRITTEN -- callers resolve engine-specific quirks (MAFFT's '_R_' flip,
+    Refiner's appended sub-range) before calling.  Here the only adjustment is
+    the trim itself: a trimmed row no longer contains the whole interval its
+    identifier claims, so the coordinates are walked in by the number of
+    non-gap bases actually removed from each end -- from the 3' end first when
+    the row is written on the minus strand.
 
-    1. Trimming removes terminal bases, so a row no longer contains the whole
-       interval its identifier claims.  Every trimmed row must have its
-       coordinates walked in by the number of non-gap bases actually removed.
-    2. MAFFT --adjustdirectionaccurately silently reverse-complements rows it
-       thinks are backwards and marks them with an '_R_' prefix.  Measured: 77
-       of 100 rows in cluster 540.  The sequence in such a row is the opposite
-       strand from the one the identifier names, so the strand must be flipped
-       too -- otherwise the seed asserts coordinates whose sequence is the
-       reverse complement of what is written next to them.
-
-    `coords` maps the ORIGINAL seq_id -> (chrom, start, end, strand), BED
-    half-open.  Returns everything needed to write the record.
+    Without this, `stk lint --genome` rejects the rows; and a seed whose
+    identifiers are subtly wrong is worse than one that fails loudly, because
+    Dfam's TSD and extension algorithms fetch flanking sequence BY identifier.
     """
     gap = ord("-")
-    ids0 = [i[3:] if i.startswith("_R_") else i for i, _ in recs]
-    flipped = [i.startswith("_R_") for i, _ in recs]
     _, m = msa_matrix(recs)
-    keep = np.ones(len(ids0), dtype=bool)
+    keep = np.ones(len(recs), dtype=bool)
     lo, hi = 0, m.shape[1]
 
     for _ in range(max_iter):
-        sub_all = m[keep]
-        lo, hi = trim_alignment(sub_all, min_occupancy)
+        lo, hi = trim_alignment(m[keep], min_occupancy)
         inside = (m[:, lo:hi] != gap).sum(axis=1)
         new_keep = keep & (inside >= min_row_bp)
-        if new_keep.sum() < 2:                  # never trim away the alignment
+        if new_keep.sum() < 2:                 # never trim the alignment away
             new_keep = keep & (inside > 0)
         if (new_keep == keep).all():
             break
         keep = new_keep
 
-    rows_out, ids_out, dropped = [], [], []
-    for i in range(len(ids0)):
+    rows_out, coords_out, dropped = [], [], []
+    for i, (chrom, s, e, strand) in enumerate(row_coords):
         nl = int((m[i, :lo] != gap).sum())
         nr = int((m[i, hi:] != gap).sum())
         nin = int((m[i, lo:hi] != gap).sum())
         if not keep[i]:
-            dropped.append(dict(seq_id=ids0[i], aligned_bp=nin,
+            dropped.append(dict(seq_id=recs[i][0], aligned_bp=nin,
                                 reason="empty_after_trim" if nin == 0
                                        else "below_min_row_bp"))
             continue
-        chrom, s, e, strand = coords[ids0[i]]
-        forward = (strand != "-") != flipped[i]
-        if forward:
-            ns, ne, nstrand = s + nl, e - nr, "+"
+        if strand == "+":
+            coords_out.append((chrom, s + nl, e - nr, "+"))
         else:
-            ns, ne, nstrand = s + nr, e - nl, "-"
-        ids_out.append((chrom, ns, ne, nstrand))
+            coords_out.append((chrom, s + nr, e - nl, "-"))
         rows_out.append(m[i, lo:hi])
 
     mat = np.stack(rows_out) if rows_out else np.zeros((0, hi - lo), np.uint8)
-    # a column left all-gap by row removal carries nothing; dropping it moves
-    # no bases, so identifiers stay correct
-    nonempty = (mat != gap).any(axis=0) if len(mat) else np.zeros(0, bool)
-    mat = mat[:, nonempty]
+    # a column left all-gap by row removal carries nothing, and dropping it
+    # moves no bases, so identifiers stay correct
+    if len(mat):
+        mat = mat[:, (mat != gap).any(axis=0)]
     cons, occ, is_match = consensus(mat, min_occupancy)
-    return dict(matrix=mat, coords=ids_out, consensus=cons, is_match=is_match,
-                occupancy=occ, dropped=dropped, n_flipped=int(sum(flipped)),
+    return dict(matrix=mat, coords=coords_out, consensus=cons,
+                is_match=is_match, occupancy=occ, dropped=dropped,
                 trim_lo=lo, trim_hi=hi)
+
+
+# ------------------------------------------------------------- 7. Refiner
+def refiner(in_fa: Path, refiner_bin: Path, threads: int = 4,
+            workdir: Path | None = None) -> dict:
+    """Run Dfam's Refiner and return its alignment plus consensus.
+
+    Refiner is NOT standalone despite appearances: it needs RepeatMasker's
+    pure-Perl modules on PERL5LIB (not REPEATMASKER_DIR -- `use lib` runs at
+    compile time, before RepModelConfig applies environment overrides) and a
+    genuine `rmblastn`.  Stock blastn cannot substitute: Refiner's search uses
+    -complexity_adjust, -matrix and the kdiv/cpg_kdiv output fields, none of
+    which stock BLAST+ supports.  vendor/refiner/ carries a working install and
+    tools/setup_refiner.sh reproduces it.
+
+    Refiner writes beside its input, so it is run in a scratch directory.
+    Usefully, it PRESERVES the input identifier and appends the sub-range it
+    actually used, e.g.
+        GCA_...:OX637595.1:3908840-3909106_+:3-267_+
+    which is what makes its rows retaggable back to genomic coordinates.
+    """
+    import shutil
+    # resolved: Refiner runs with cwd=work, so a relative binary path would miss
+    refiner_bin = Path(refiner_bin).resolve()
+    in_fa = Path(in_fa).resolve()
+    work = (Path(workdir).resolve() if workdir
+            else Path(tempfile.mkdtemp(prefix="refiner_")))
+    work.mkdir(parents=True, exist_ok=True)
+    local = work / "copies.fa"
+    shutil.copy(in_fa, local)
+    p = subprocess.run([str(refiner_bin), "-threads", str(threads), str(local)],
+                       capture_output=True, text=True, cwd=work)
+    stk = local.with_name(local.name + ".refiner.stk")
+    cons_f = local.with_name(local.name + ".refiner_cons")
+    if p.returncode != 0 or not stk.exists():
+        raise RuntimeError(f"Refiner failed ({p.returncode}): "
+                           f"{(p.stdout + p.stderr)[-2000:]}")
+    ids, rows = [], []
+    for line in open(stk):
+        line = line.rstrip("\n")
+        if not line or line.startswith("#") or line == "//":
+            continue
+        parts = line.split(None, 1)
+        if len(parts) == 2:
+            ids.append(parts[0])
+            rows.append(parts[1])
+    cons = "".join(l.strip() for l in open(cons_f) if not l.startswith(">"))
+    kimura = float("nan")
+    with open(cons_f) as fh:
+        head = fh.readline()
+        if "Avg Kimura" in head:
+            try:
+                kimura = float(head.split("Avg Kimura =")[1].split(")")[0])
+            except (IndexError, ValueError):
+                pass
+    return dict(records=list(zip(ids, rows)), consensus=cons,
+                avg_kimura=kimura, workdir=str(work),
+                stdout=p.stdout[-500:])
+
+
+def parse_refiner_id(rid: str, coords: dict) -> tuple | None:
+    """'<smitten>:<a>-<b>_<s>' -> genomic (chrom, start, end, strand).
+
+    <a>-<b> is 1-based fully closed ON THE EXTRACTED SEQUENCE, which is the
+    genomic forward strand only when the original copy was '+'.  For a '-'
+    copy the extracted sequence is already reverse-complemented, so the
+    sub-range counts from the genomic 3' end.
+    """
+    head, _, tail = rid.rpartition(":")
+    if not head or "-" not in tail:
+        return None
+    rng, _, sub_strand = tail.rpartition("_")
+    if sub_strand not in ("+", "-") or "-" not in rng:
+        return None
+    try:
+        a, b = (int(x) for x in rng.split("-", 1))
+    except ValueError:
+        return None
+    if head not in coords:
+        return None
+    chrom, s, e, strand = coords[head]
+    if strand == "+":
+        ns, ne = s + (a - 1), s + b
+    else:
+        ns, ne = e - b, e - (a - 1)
+    final = strand if sub_strand == "+" else ("-" if strand == "+" else "+")
+    return chrom, ns, ne, final

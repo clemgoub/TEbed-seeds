@@ -8,3 +8,4 @@ data/*.fa
 data/*.fai
 libs/
 vendor/dfam-curator/target/
+vendor/refiner/

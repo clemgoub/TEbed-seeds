@@ -37,7 +37,9 @@ seed:
   min_match_occupancy: 0.5    # column is a consensus (match) column above this
   min_frag_bp: 30             # fragments below this carry no alignable signal
 
-consensus_engine: mafft     # mafft first (fastest to lintable), refiner later
+consensus_engine: mafft     # primary engine reported in the summary table
+engines: [mafft, refiner]   # build the seed both ways and compare (step 4.7)
+refiner_bin: vendor/refiner/bin/Refiner   # tools/setup_refiner.sh installs it
 overextension_ratio: 1.5    # vs MEDIAN member consensus length
 kimura_cpg: true            # --no-kimura-cpg to disable
 # stk lint rejects abbreviated first names (au_format ERROR): "C. Goubert"
