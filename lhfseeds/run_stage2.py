@@ -42,7 +42,9 @@ INVARIANT_MODE = "hit_id"
 def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
               cfg: dict, engine: str = "mafft",
               tp_info: tuple = (None, "", "unmapped", None),
-              fa: IndexedFasta | None = None) -> dict:
+              fa: IndexedFasta | None = None,
+              cluster_key: str | None = None,
+              kimura: float | None = None) -> dict:
     """Write the Stockholm seed and lint it.
 
     `stk lint` is a SOFT gate by design (PLAN_A): a failing packet still goes to
@@ -62,6 +64,9 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
         "OC": cfg.get("taxon", ""),
         "SQ": len(ids),
         "BM": f"TEbed-seeds {cfg.get('contract_version', '?')}; {engine}",
+        # SE is capped at 80 characters (se_too_long, ERROR)
+        "SE": (f"TEbed-seeds {mode}; cluster {cluster_key or cluster_id}; "
+               f"{cfg['assembly']}")[:80],
         "CC": [f"Rebuilt from track data; provenance in packet.json.",
                f"Merge mode {mode}; one representative per deduplicated locus.",
                f"Classification path {cpath or 'unresolved'}"
@@ -70,6 +75,8 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
     }
     if tp:
         meta["TP"] = tp
+    if kimura is not None and kimura == kimura:      # not NaN
+        meta["KD"] = f"{kimura:.2f}"
     stk_path = outdir / f"seed.{engine}.stk"
     stockholm.write_stockholm(stk_path, [stockholm.format_record(ids, rows, meta)])
 
@@ -140,7 +147,8 @@ def lookup_tp(tp_map: dict, canonical_path, cfg: dict) -> tuple:
 
 def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
                  outdir: Path, cluster_id: int, threads: int = 1,
-                 tp_info: tuple = (None, "", "unmapped", None)) -> dict:
+                 tp_info: tuple = (None, "", "unmapped", None),
+                 cluster_key: str | None = None) -> dict:
     outdir.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     pool = copies[copies.merge_mode.isin([mode, INVARIANT_MODE])]
@@ -255,7 +263,9 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
                 [(f"cluster_{cluster_id:05d}_{mode}_{eng}_consensus",
                   fin["consensus"])], outdir / f"consensus.{eng}.fa")
             lr = emit_seed(outdir, cluster_id, mode, fin, cfg, engine=eng,
-                           tp_info=tp_info, fa=fa)
+                           tp_info=tp_info, fa=fa,
+                           cluster_key=cluster_key,
+                           kimura=extra.get('avg_kimura'))
             st = dict(
                 engine=eng, alignment_rows=int(m.shape[0]),
                 aln_width=int(m.shape[1]), n_match_columns=int(is_match.sum()),
@@ -290,7 +300,7 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
     ratio = float(cfg.get("overextension_ratio", 1.5))
     overext = bool(cons) and len(cons) > ratio * med_member
     packet = dict(
-        cluster_id=cluster_id, mode=mode,
+        cluster_id=cluster_id, cluster_key=cluster_key, mode=mode,
         contract_version=cfg.get("contract_version"),
         assembly=cfg["assembly"], flank_bp=flank,
         members=sorted(pool.member.unique()),
@@ -363,6 +373,8 @@ def main(argv=None):
     cand = pd.read_csv(work / f"candidates_{args.linkage}.tsv", sep="\t")
     path_by_cluster = (dict(zip(cand.cluster_id, cand.majority_path))
                        if "majority_path" in cand.columns else {})
+    key_by_cluster = (dict(zip(cand.cluster_id, cand.cluster_key))
+                      if "cluster_key" in cand.columns else {})
     if not path_by_cluster:
         print("[stage2] candidates table has no majority_path column -- re-run "
               "stage 0 to emit TP classifications", file=sys.stderr)
@@ -385,7 +397,8 @@ def main(argv=None):
             cpath = None if pd.isna(cpath) else cpath
             tp_info = lookup_tp(tp_map, cpath, cfg)
             p = build_packet(copies, mode, fa, cfg, cdir / mode, cid,
-                             threads=args.threads, tp_info=tp_info)
+                             threads=args.threads, tp_info=tp_info,
+                             cluster_key=key_by_cluster.get(cid))
             packets.append(p)
             if "error" in p:
                 print(f"[stage2] cluster {cid} {mode}: {p['error']}", file=sys.stderr)
