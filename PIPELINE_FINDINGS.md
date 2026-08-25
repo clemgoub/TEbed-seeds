@@ -74,18 +74,70 @@ default on the secondary criteria instead.
 
 ---
 
-## F4. A tool consensus can be an over-assembly of tandem units — confirmed for four REPET entries, and NOT generalisable
+## F4. A tool consensus can be an over-assembly — CHIMERA, not tandem (corrected 2026-08-25); confirmed for four REPET entries, and NOT generalisable
 
 **Prompted by:** cluster 62's two REPET families having suspiciously clean
 consensus lengths of **764 and 765 bp**, against 264–269 bp from rm2, pantera
 and edta for the same element, and the hypothesis that this was a
 palindromic/MITE structure worth tolerating.
 
-### Confirmed: the 765 bp entries are ~3 tandem units of a ~255 bp element
+### CORRECTION (2026-08-25): the mechanism is a CHIMERA of two elements
+
+The tandem reading below was wrong, and was caught by looking at the locus in
+the genome browser. The earlier analysis filtered each tool to the single
+cluster family, which hid everything those tools call under *other* family
+names at the same locus.
+
+**The decisive test** (co-annotation identity per consensus block; tandem units
+of one element must be co-annotated by the SAME family at every block, a
+chimera by different families):
+
+| REPET consensus block | dominant rm2 co-annotation | purity |
+|---|---|---|
+| `G1473-Map8` 51-484 | `rnd-1_family-608` (**496 bp** consensus) | 55-100% |
+| `G1473-Map8` 484-765 | `rnd-1_family-286` (**269 bp** consensus) | 79-100% |
+| `G1303-Map20` 1-254 | `rnd-1_family-286` (269 bp) | 99-100% |
+| `G1303-Map20` 280-764 | `rnd-1_family-608` (496 bp) | 51-100% |
+
+**496 + 269 = 765.** The junction falls exactly where the arithmetic predicts,
+and the two REPET entries are the *same pair fused in opposite orders* — which
+explains why they partition loci almost perfectly rather than double-annotating.
+
+Both parts are genuine, independently confirmed elements, each co-annotated
+along its whole length by a matching-length family from another tool:
+
+- **element A ≈ 496 bp** — rm2 `rnd-1_family-608` (median copy 473 bp = 95% of
+  its consensus) and pantera `Unknown_390-fGobNig` (497 bp consensus, median
+  copy 482 bp = 97%), which covers A end to end.
+- **element B ≈ 269 bp** — rm2 `rnd-1_family-286` (median copy 224 bp = 83%)
+  and pantera `Unknown_572-fGobNig` (264 bp, median 237 bp = 90%).
+
+Worked example, matching the browser: `OX637613.1:25,978,734-25,979,682`
+(UCSC `chr19:25,978,734-25,979,682`). One REPET copy (`hit_id ms119910`,
+consensus 2-764 of 765) spans **both** elements: its 497 bp fragment sits on A
+(where pantera calls `Unknown_390` at 100% of its 497 bp consensus and edta
+calls `TE_00001450`) and its 277 bp fragment sits on B (rm2 `rnd-1_family-286`
+at 99% of 269 bp, pantera `Unknown_572` at 100% of 264 bp, edta `TE_00002952`).
+Table and figure: `runs/<asm>/examples/overassembly_locus_example.tsv`.
+
+**Why the coordinate-only phase signal was fooled:** 496 ≈ 2 x 250, so
+endpoints cluster near multiples of ~255 and a k=3 array is mimicked by a
+chimera whose two parts happen to be ~2x and ~1x a similar length. Phase
+enrichment cannot separate those; co-annotation identity can.
+
+**Consequence for the deconvolution rule (§4.1).** Substituting the mate length
+is still the right action, but it is right for only *part* of a chimeric
+family's copies. Cluster 1103 contains the B-side mates (264, 269) and not the
+A-side ones, so REPET copies get judged against ~269 — correct for the B
+fragments, wrong for the ~21% of `G1473-Map8` hits (683 of 3,280) that fall in
+the A-dominated blocks. The rule should therefore be reported as *coarse* and
+the per-copy `cons_len_source` retained, which it is.
+
+### SUPERSEDED reading (kept for the record): ~3 tandem units of a ~255 bp element
 
 - **Palindromic structure: refuted.** Adjacent rm2 hits within 700 bp are
   **75% same-strand**; a palindrome would show an *excess* of opposite-strand
-  pairs, not a deficit.
+  pairs, not a deficit.  (This part stands — a palindrome is ruled out either way.)
 - **rm2's 269 bp entry is the UNIT, not a fragment.** Self-alignment shows no
   same-strand off-diagonal at any offset (tandem cover 0.00 for k=2…5). Its
   only off-diagonal is a **14 bp opposite-strand terminal pair — a terminal
@@ -100,6 +152,62 @@ palindromic/MITE structure worth tolerating.
   `Gnig_TEdenovoGr-B-G1039-Map3` (765 bp) and `Gnig_TEdenovoGr-B-G1568-Map3`
   (771 bp), in two other clusters, both k=3, unit 254.7–257.0 bp, each with
   rm2/pantera mates at 264–270 bp. Four REPET entries in total.
+
+### CORRECTION (2026-08-25, REPET library in hand): it is not a tandem array — it is a CHIMERA of two different elements
+
+The sequence test §C was waiting for now runs, and it **overturns the mechanism**
+while leaving the pipeline consequence intact. Three independent lines:
+
+1. **Self-alignment finds no tandem structure.** `G1303-Map20` (764 bp) against
+   itself (`blastn -word_size 7 -dust no -strand both`) has **no same-strand
+   off-diagonal at ±255 or ±510** — the predicted signature of three tandem
+   units. Its longest off-diagonal is 22 bp. The only notable hits are
+   *opposite*-strand terminal pairs (`2-13` vs `267-256`, 12 bp, 91.7%) — the
+   TIR of ONE ~267 bp unit.
+2. **The unit matches the long entry exactly ONCE.** rm2's 269 bp
+   `rnd-1_family-286` aligns to `G1303-Map20` at **positions 2–269, 98.5% over
+   268 bp — and nowhere else**. Against the sibling entry `G1473-Map8` it aligns
+   once at **positions 497–764, 96.6%**. One copy each, at opposite ends.
+3. **The other ~495 bp is a different, real TE.** `G1303-Map20`'s positions
+   270–764 match rm2 `rnd-5_family-6390#SINE/5S-Deu-L2` at **97.4% over 495 bp**
+   — a 5S-derived SINE. The same cassette appears in at least six further REPET
+   entries (`G1329-Map5`, `G339-Map20`, `G1058-Map5`, `G926-Map14`,
+   `G652-Map5`) at 99%+ identity and at varying offsets. And `G1473-Map8`'s
+   non-element half is the **reverse complement** of `G1303-Map20`'s
+   (98.99% over 496 bp).
+
+**What REPET actually did:** a ~265 bp TIR MITE and a ~495 bp 5S-derived SINE
+insert next to each other frequently, and REPET built library entries that
+**fuse the two**, in both relative orientations — `G1303` = MITE+SINE,
+`G1473` = SINE(rc)+MITE. That is a *chimeric consensus*, not a collapsed tandem
+array, and it explains every coordinate observation that motivated the tandem
+reading: copies cover only the MITE third, the endpoint modes at ~260 and ~500
+are the fusion boundary, `L/median_copy ≈ 3` is arithmetic rather than a repeat
+count, and the two entries partition loci because they are two constructions of
+the same pair.
+
+**So `k` was never real.** The phase-enrichment peak at k=3 was detecting the
+fusion boundary, not a period. This is consistent with — and explains — the
+decoy-null result (no excess of integer-k structure, p = 0.72) and the
+0/8 sensitivity on sequence-verified rm2 cases: the detector was built for a
+phenomenon that is not the one occurring. It also retrospectively justifies the
+decision **not** to divide by a detected k.
+
+**The pipeline consequence is unchanged and if anything better founded:** the
+member's own consensus length must not judge near-full-length, because only
+~265 of its 764 bp is the element. Inheriting the cluster-mates' length is
+right for a chimera exactly as it would have been for a tandem array. The
+provenance value `cons_len_source = deconvolved` keeps its meaning ("this
+member's length was overridden by cross-tool consensus"); only the mechanism
+named in the docs changes.
+
+**A better detector is now obvious and is the real §C3:** a library consensus
+whose segments match **two different families of another tool**, with a sharp
+boundary between them, is a chimera. That is a sequence test over the libraries,
+it needs no coordinates, and unlike the coordinate screen it targets the
+phenomenon that actually occurs. Four of the five clusterable tools now have a
+goby library (rm2, edta, repet, fastltr — pantera is still missing), so a
+per-tool chimera rate is finally computable.
 
 ### Refuted: there is no measurable per-tool over-assembly rate
 
@@ -133,7 +241,7 @@ length-carrying mates, **243 hit some integer k in 2…5** — 103 rm2, 139 repe
 47 pantera. Confirmation needs both legs, and even then it is a screen.
 
 **The honest statement:** four REPET entries in this assembly are confirmed
-over-assemblies. Nothing can be said about how common the phenomenon is per
+over-assemblies (chimeric, per the correction above). Nothing can be said about how common the phenomenon is per
 tool, because the only sequence-free screen available has ~zero measured
 sensitivity. *A per-tool rate requires the libraries.*
 
