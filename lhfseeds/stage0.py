@@ -18,6 +18,7 @@ Every design decision here was measured on GCA_951799975.1 before being coded
 from __future__ import annotations
 
 import collections
+import hashlib
 import itertools
 import sys
 from dataclasses import dataclass, field
@@ -194,6 +195,31 @@ def build_graph(fam_hits: dict[str, pd.DataFrame], chrom_sizes: dict[str, int],
 
 
 # --------------------------------------------------------------------------- linkage
+def cluster_key(members) -> str:
+    """Content-addressed cluster identifier.
+
+    `cluster_id` is a positional index, so it is only meaningful within one
+    stage-0 run: re-running with a different member set renumbers everything.
+    The key is derived from the member set itself, so a seed packet can always
+    be traced back to the cluster it was built from even across re-runs.
+    """
+    return hashlib.sha1(";".join(sorted(members)).encode()).hexdigest()[:10]
+
+
+def _sorted_clusters(clusters):
+    """Deterministic cluster order.
+
+    Both linkages accumulate members through Python sets and dicts, whose
+    iteration order depends on string hashing and therefore on PYTHONHASHSEED.
+    Left alone, two runs of stage 0 over identical inputs produce identical
+    CLUSTERS in a different ORDER, so `cluster_id` -- a positional index --
+    silently points at a different family. Measured: cluster 62 became cluster
+    292 on a re-run, and id 62 came back holding an unrelated family, which
+    would have invalidated every seed packet keyed by it.
+    """
+    return sorted((sorted(c) for c in clusters), key=lambda c: (len(c), c))
+
+
 def _components(pairs):
     par = {}
     def find(x):
@@ -206,9 +232,9 @@ def _components(pairs):
         if ra != rb:
             par[ra] = rb
     comp = collections.defaultdict(list)
-    for x in list(par):
+    for x in sorted(par):
         comp[find(x)].append(x)
-    return [sorted(v) for v in comp.values() if len(v) > 1]
+    return _sorted_clusters(v for v in comp.values() if len(v) > 1)
 
 
 def link_strict(edges):
@@ -221,7 +247,7 @@ def link_strict(edges):
         if best[e["b"]].get(ta, (-1, None))[0] < e["w_bp"]:
             best[e["b"]][ta] = (e["w_bp"], e["a"])
     sel = {(n, m) for n, byt in best.items() for _, m in byt.values()}
-    mutual = [(a, b) for a, b in sel if (b, a) in sel and a < b]
+    mutual = sorted((a, b) for a, b in sel if (b, a) in sel and a < b)
     return _components(mutual)
 
 
@@ -260,7 +286,7 @@ def link_lenient(edges, tau: float):
                         continue
                     seen.add(y)
                     grpv.append(y)
-                    stack.extend(adj[y] - seen)
+                    stack.extend(sorted(adj[y] - seen))
                 comps.append(sorted(grpv))
             if len(comps) > 1:
                 out = []
@@ -273,9 +299,9 @@ def link_lenient(edges, tau: float):
         return [c]
 
     out = []
-    for c in _components([(e["a"], e["b"]) for e in edges]):
+    for c in _components(sorted((e["a"], e["b"]) for e in edges)):
         out.extend(split(c))
-    return [c for c in out if len(c) > 1]
+    return _sorted_clusters(c for c in out if len(c) > 1)
 
 
 def diagnostics(clusters, edges, fam_order):

@@ -13,6 +13,8 @@ import collections
 import numpy as np
 import pandas as pd
 
+from . import stage0
+
 
 def order_coherence(members: list[str], fam_order: dict[str, str],
                     weights: dict[str, float]) -> tuple[float, str | None]:
@@ -85,7 +87,8 @@ def evaluate_clusters(clusters: list[list[str]], evidence: pd.DataFrame,
             G6_tools=n_tools >= g["min_tools"],
         )
         rows.append(dict(
-            cluster_id=ci, n_members=len(members), n_tools=n_tools,
+            cluster_id=ci, cluster_key=stage0.cluster_key(members),
+            n_members=len(members), n_tools=n_tools,
             members=";".join(members), majority_order=majority,
             majority_path=mpath, majority_path_frac=round(mpath_frac, 3),
             order_coherence=round(coh, 3), pooled_full_len=int(pooled_full),
