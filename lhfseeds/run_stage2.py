@@ -356,7 +356,15 @@ def main(argv=None):
                     help="TSV with a cluster_id column (tools/select_batch.py)")
     ap.add_argument("--modes", default=None,
                     help="comma list; default from config merge_mode")
-    ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--threads", type=int, default=4,
+                    help="threads handed to MAFFT within one packet")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="packets built in parallel, as separate processes")
+    ap.add_argument("--shard", default=None, metavar="I/N",
+                    help="internal: process only clusters where index %% N == I")
+    ap.add_argument("--skip-existing", action="store_true",
+                    help="skip clusters whose packet.json already exists "
+                         "for every requested mode")
     args = ap.parse_args(argv)
 
     cfg = yaml.safe_load(open(args.config))
@@ -388,6 +396,41 @@ def main(argv=None):
     else:
         sel = cand[cand.candidate].sort_values("pooled_full_len", ascending=False)
         cids = [int(c) for c in sel.head(args.top).cluster_id]
+
+    if args.skip_existing:
+        before = len(cids)
+        cids = [c for c in cids
+                if not all((work / "seed_packets" / f"cluster_{c:05d}" / m
+                            / "packet.json").exists() for m in modes)]
+        print(f"[stage2] --skip-existing: {before - len(cids)} already built",
+              file=sys.stderr)
+
+    # Parallel by process over disjoint packet directories, same as stage 1.
+    if args.workers > 1 and args.shard is None:
+        import subprocess
+        base = [sys.executable, "-m", "lhfseeds.run_stage2",
+                "--config", args.config, "--linkage", args.linkage,
+                "--threads", str(max(1, args.threads // args.workers))]
+        if args.work_dir:
+            base += ["--work-dir", args.work_dir]
+        if args.modes:
+            base += ["--modes", args.modes]
+        for c in cids:
+            base += ["--cluster", str(int(c))]
+        if args.skip_existing:
+            base += ["--skip-existing"]
+        procs = [subprocess.Popen(base + ["--shard", f"{i}/{args.workers}"])
+                 for i in range(args.workers)]
+        codes = [p.wait() for p in procs]
+        bad = [i for i, c in enumerate(codes) if c != 0]
+        if bad:
+            sys.exit(f"[stage2] shard(s) {bad} failed with {codes}")
+        print(f"[stage2] {args.workers} shards complete", file=sys.stderr)
+        return
+
+    if args.shard:
+        i, n = (int(x) for x in args.shard.split("/"))
+        cids = list(cids)[i::n]
 
     for cid in cids:
         cdir = work / "seed_packets" / f"cluster_{cid:05d}"
@@ -438,7 +481,8 @@ def main(argv=None):
                                     code=name, n=n, detail=""))
     tri_df = pd.DataFrame(tri)
     if len(tri_df):
-        tri_df.to_csv(work / "lint_triage.tsv", sep="\t", index=False)
+        sfx = f".shard{args.shard.replace('/', '_')}" if args.shard else ""
+        tri_df.to_csv(work / f"lint_triage{sfx}.tsv", sep="\t", index=False)
         roll = (tri_df.groupby(["severity", "code"])
                       .agg(packets=("cluster_id", "size"), total=("n", "sum"))
                       .sort_values(["severity", "total"], ascending=[True, False]))
@@ -452,7 +496,8 @@ def main(argv=None):
     cmp = pd.DataFrame([{k: v for k, v in p.items()
                          if not isinstance(v, (dict, list))} for p in packets])
     if len(cmp):
-        cmp.to_csv(work / "seed_mode_comparison.tsv", sep="\t", index=False)
+        sfx2 = f".shard{args.shard.replace('/', '_')}" if args.shard else ""
+        cmp.to_csv(work / f"seed_mode_comparison{sfx2}.tsv", sep="\t", index=False)
         cols = [c for c in ["cluster_id", "mode", "n_loci", "n_loci_full",
                             "sampled_n", "realized_full_frac", "alignment_rows",
                             "rows_from_bridged_copies", "rebuilt_consensus_len",
