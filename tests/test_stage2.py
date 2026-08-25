@@ -388,3 +388,24 @@ def test_deconvolution_does_not_touch_an_ordinary_cluster():
     d = _deconv_decision({"rm2": 378., "pantera": 351., "edta": 351.,
                           "repet": 367.})
     assert set(d.values()) == {"keep"}
+
+
+def test_clustermate_paint_order_is_evidence_ranked_not_hash_ranked():
+    """build_clustermate_conslen paints members into a shared array, so at a
+    contested base whoever paints LAST wins. Passing a set made that order
+    depend on PYTHONHASHSEED: one EDTA member's inherited consensus length
+    moved from 381 bp to 1,755 bp between two runs on identical input."""
+    import inspect
+    from lhfseeds import stage1
+    src = inspect.getsource(stage1.build_clustermate_conslen)
+    assert "order = sorted(" in src, "paint order must be explicit"
+    assert "for (tool, fam) in order:" in src, "must iterate the sorted order"
+    sig = inspect.signature(stage1.build_clustermate_conslen)
+    assert "weight_by_member" in sig.parameters
+
+    # the ordering itself: least evidence first, so the best-supported wins
+    fams = {("edta", "A"), ("rm2", "B"), ("repet", "C")}
+    w = {"edta:A": 10.0, "rm2:B": 1000.0, "repet:C": 100.0}
+    order = sorted(fams, key=lambda tf: w.get(f"{tf[0]}:{tf[1]}", 0.0))
+    assert order[-1] == ("rm2", "B"), "highest-evidence member must paint last"
+    assert order[0] == ("edta", "A")

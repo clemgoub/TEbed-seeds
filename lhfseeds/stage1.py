@@ -75,7 +75,8 @@ def build_foreign_probe(repo, tools, chrom_sizes, cluster_fams, chroms=None):
 
 
 def build_clustermate_conslen(repo, cluster_fams, chrom_sizes,
-                              conslen_by_member: dict[str, float]):
+                              conslen_by_member: dict[str, float],
+                              weight_by_member: dict[str, float] | None = None):
     """Paint cluster-mates' consensus length per base, for inheritance.
 
     A member without consensus coordinates (EDTA: 0% of hits carry them)
@@ -85,10 +86,25 @@ def build_clustermate_conslen(repo, cluster_fams, chrom_sizes,
     764/765 bp), so any cluster-wide average would be wrong for both groups.
     Returns lookup(chrom, start, end) -> modal cluster-mate consensus length
     over that span, or nan.
+
+    ORDER MATTERS AND MUST NOT BE INCIDENTAL. Members are painted into a shared
+    array, so at a base two mates both cover, whoever paints LAST wins. Callers
+    used to pass a set, whose iteration order depends on PYTHONHASHSEED -- so
+    the inherited length at contested bases changed between runs on identical
+    input. Measured: one EDTA member's inherited consensus length moved from
+    381 bp to 1,755 bp between two runs with no other change. That is the
+    cluster_id reproducibility bug again, one level down, and this time it
+    moves a scientific value rather than a label.
+
+    Members are now painted in order of INCREASING evidence (hit count by
+    default), so the best-supported mate paints last and wins a contested base.
     """
+    order = sorted(cluster_fams,
+                   key=lambda tf: (weight_by_member or {}).get(
+                       f"{tf[0]}:{tf[1]}", 0.0))
     from .stage0 import BED16_COLS
     arrs: dict[str, np.ndarray] = {}
-    for (tool, fam) in cluster_fams:
+    for (tool, fam) in order:
         L = conslen_by_member.get(f"{tool}:{fam}")
         if L is None or np.isnan(L):
             continue

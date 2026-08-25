@@ -135,7 +135,9 @@ def main(argv=None):
                       file=sys.stderr)
 
         mate_lookup = stage1.build_clustermate_conslen(
-            repo, cluster_fams, chrom_sizes, conslen)
+            repo, cluster_fams, chrom_sizes, conslen,
+            weight_by_member={m: float(len(h))
+                              for m, h in hits_by_member.items()})
 
         all_copies = []
         for m, hits in hits_by_member.items():
