@@ -157,12 +157,26 @@ def explode_fragments(copies: pd.DataFrame, min_frag_bp: int = MIN_FRAG_BP
             d = {c: getattr(r, c) for c in copies.columns
                  if c not in ("start", "end", "frag_starts", "frag_ends")}
             d.update(start=s, end=e, frag_index=i, frag_of=nf,
-                     is_fragment_of_bridged=nf > 1)
+                     is_fragment_of_bridged=nf > 1,
+                     strand=norm_strand(d.get("strand")),
+                     strand_called=d.get("strand") in ("+", "-"))
             rows.append(d)
     return pd.DataFrame(rows)
 
 
 # --------------------------------------------------------- 3. extraction
+def norm_strand(strand) -> str:
+    """BED strand -> '+' or '-'.
+
+    EDTA leaves the strand uncalled ('.') on ~0.3% of its hits.  Extraction
+    reverse-complements only on '-', so an uncalled strand IS extracted forward
+    and the identifier must say '+'.  Leaving '.' in play let extraction and
+    identifier retagging disagree about the orientation of the same row; the
+    Smitten format has no '.' anyway, and `stk lint --genome` caught it.
+    """
+    return "-" if strand == "-" else "+"
+
+
 def seq_id(assembly: str, chrom: str, start: int, end: int, strand: str) -> str:
     """Dfam Smitten identifier: 1-based fully closed, from BED half-open."""
     return f"{assembly}:{chrom}:{start + 1}-{end}_{strand}"
@@ -357,3 +371,76 @@ def trim_alignment(m: np.ndarray, min_occupancy: float = 0.5,
     if not len(ok):
         return 0, m.shape[1]
     return int(ok[0]), int(ok[-1]) + 1
+
+
+# ------------------------------------------- 6. keeping ids true after trimming
+def _flip(strand: str) -> str:
+    return "-" if strand == "+" else "+"
+
+
+def finalize_alignment(recs: list[tuple[str, str]], coords: dict,
+                       min_occupancy: float = 0.5, min_row_bp: int = 30,
+                       max_iter: int = 4) -> dict:
+    """Trim, drop rows that survive the trim empty, and RETAG every id.
+
+    Two things make the naive path wrong, and `stk lint --genome` catches both:
+
+    1. Trimming removes terminal bases, so a row no longer contains the whole
+       interval its identifier claims.  Every trimmed row must have its
+       coordinates walked in by the number of non-gap bases actually removed.
+    2. MAFFT --adjustdirectionaccurately silently reverse-complements rows it
+       thinks are backwards and marks them with an '_R_' prefix.  Measured: 77
+       of 100 rows in cluster 540.  The sequence in such a row is the opposite
+       strand from the one the identifier names, so the strand must be flipped
+       too -- otherwise the seed asserts coordinates whose sequence is the
+       reverse complement of what is written next to them.
+
+    `coords` maps the ORIGINAL seq_id -> (chrom, start, end, strand), BED
+    half-open.  Returns everything needed to write the record.
+    """
+    gap = ord("-")
+    ids0 = [i[3:] if i.startswith("_R_") else i for i, _ in recs]
+    flipped = [i.startswith("_R_") for i, _ in recs]
+    _, m = msa_matrix(recs)
+    keep = np.ones(len(ids0), dtype=bool)
+    lo, hi = 0, m.shape[1]
+
+    for _ in range(max_iter):
+        sub_all = m[keep]
+        lo, hi = trim_alignment(sub_all, min_occupancy)
+        inside = (m[:, lo:hi] != gap).sum(axis=1)
+        new_keep = keep & (inside >= min_row_bp)
+        if new_keep.sum() < 2:                  # never trim away the alignment
+            new_keep = keep & (inside > 0)
+        if (new_keep == keep).all():
+            break
+        keep = new_keep
+
+    rows_out, ids_out, dropped = [], [], []
+    for i in range(len(ids0)):
+        nl = int((m[i, :lo] != gap).sum())
+        nr = int((m[i, hi:] != gap).sum())
+        nin = int((m[i, lo:hi] != gap).sum())
+        if not keep[i]:
+            dropped.append(dict(seq_id=ids0[i], aligned_bp=nin,
+                                reason="empty_after_trim" if nin == 0
+                                       else "below_min_row_bp"))
+            continue
+        chrom, s, e, strand = coords[ids0[i]]
+        forward = (strand != "-") != flipped[i]
+        if forward:
+            ns, ne, nstrand = s + nl, e - nr, "+"
+        else:
+            ns, ne, nstrand = s + nr, e - nl, "-"
+        ids_out.append((chrom, ns, ne, nstrand))
+        rows_out.append(m[i, lo:hi])
+
+    mat = np.stack(rows_out) if rows_out else np.zeros((0, hi - lo), np.uint8)
+    # a column left all-gap by row removal carries nothing; dropping it moves
+    # no bases, so identifiers stay correct
+    nonempty = (mat != gap).any(axis=0) if len(mat) else np.zeros(0, bool)
+    mat = mat[:, nonempty]
+    cons, occ, is_match = consensus(mat, min_occupancy)
+    return dict(matrix=mat, coords=ids_out, consensus=cons, is_match=is_match,
+                occupancy=occ, dropped=dropped, n_flipped=int(sum(flipped)),
+                trim_lo=lo, trim_hi=hi)

@@ -6,3 +6,5 @@ data/*.fna
 data/*.fna.fai
 data/*.fa
 data/*.fai
+libs/
+vendor/dfam-curator/target/

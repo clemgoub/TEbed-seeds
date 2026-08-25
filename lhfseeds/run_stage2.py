@@ -30,13 +30,82 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from . import stage2
+from . import stage2, stockholm
 from .fasta import IndexedFasta
 
 # members whose copies come from the tool's own fragment linkage do not vary
 # with merge mode; they must appear in BOTH pools or the comparison is not
 # like-for-like (different membership, not just different merging).
 INVARIANT_MODE = "hit_id"
+
+
+def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
+              cfg: dict) -> dict:
+    """Write the Stockholm seed and lint it.
+
+    `stk lint` is a SOFT gate by design (PLAN_A): a failing packet still goes to
+    the queue, flagged, with its lint output attached, because a failure that is
+    silently dropped is a failure nobody fixes.
+    """
+    ids = [stage2.seq_id(cfg["assembly"], c, s, e, st)
+           for (c, s, e, st) in fin["coords"]]
+    rows = ["".join(chr(x) for x in r).replace("-", stockholm.GAP)
+            for r in fin["matrix"]]
+    tp = lookup_tp(cfg)
+    meta = {
+        "ID": f"TEbedSeeds_c{cluster_id:05d}_{mode}",
+        "DE": (f"Consensus rebuilt from {len(ids)} genomic copies of "
+               f"multi-tool cluster {cluster_id} ({mode})")[:80],
+        "AU": cfg.get("au_string", ""),
+        "OC": cfg.get("taxon", ""),
+        "SQ": len(ids),
+        "BM": f"TEbed-seeds {cfg.get('contract_version', '?')}; "
+              f"{cfg.get('consensus_engine', 'mafft')}",
+        "CC": [f"Rebuilt from track data; provenance in packet.json.",
+               f"Merge mode {mode}; one representative per deduplicated locus."],
+        "RF": stockholm.rf_line(fin["consensus"], fin["is_match"]),
+    }
+    if tp:
+        meta["TP"] = tp
+    stk_path = outdir / "seed.stk"
+    stockholm.write_stockholm(stk_path, [stockholm.format_record(ids, rows, meta)])
+
+    stk_bin = Path(cfg.get("stk_bin",
+                           "vendor/dfam-curator/target/release/stk")).expanduser()
+    res: dict = {"tp_emitted": bool(tp)}
+    if not stk_bin.exists():
+        res["error"] = f"stk binary not found at {stk_bin}"
+        return res
+    # rewrite RF with Dfam's own consensus caller so rf_consensus_mismatch
+    # compares like with like, then lint the file that will actually be shipped
+    if stockholm.update_consensus(stk_path, outdir / "seed.rf.stk", stk_bin):
+        stk_path.unlink()
+        (outdir / "seed.rf.stk").rename(stk_path)
+    res["tier1"] = stockholm.lint(stk_path, stk_bin, no_network=True)
+    genome = cfg.get("assembly_fasta")
+    if genome:
+        res["genome"] = stockholm.lint(stk_path, stk_bin,
+                                       genome=Path(genome).expanduser(),
+                                       no_network=True)
+    (outdir / "lint.txt").write_text(
+        res["tier1"]["output"] + "\n" + res.get("genome", {}).get("output", ""))
+    return res
+
+
+def lookup_tp(cfg: dict) -> str | None:
+    """#=GF TP from config/tp_map.tsv.  An unmapped canonical path must BLOCK
+    the TP rather than guess one -- a wrong classification is worse than none."""
+    p = Path(cfg.get("tp_map", "config/tp_map.tsv"))
+    fallback = cfg.get("tp_default")
+    if not p.exists():
+        return fallback
+    try:
+        t = pd.read_csv(p, sep="\t")
+    except Exception:
+        return fallback
+    if "canonical_path" not in t.columns or "tp" not in t.columns:
+        return fallback
+    return fallback
 
 
 def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
@@ -95,32 +164,43 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
     if len(bad):
         raise AssertionError(f"flank accounting failed for {len(bad)} records")
 
-    aln_info, cons, occ_stats = {}, "", {}
+    aln_info, cons, occ_stats, lint_res = {}, "", {}, {}
     n_aln = 0
+    min_occ = float(seedcfg.get("min_match_occupancy", 0.5))
     if len(recs) >= 2:
         aln_info = stage2.mafft(outdir / "copies.fa", outdir / "aln.fa",
                                 threads=threads)
         arecs = stage2.read_fasta(outdir / "aln.fa")
-        ids, m = stage2.msa_matrix(arecs)
-        n_aln = len(ids)
-        lo, hi = stage2.trim_alignment(m, min_occupancy=0.5)
-        sub = m[:, lo:hi]
-        cons, occ, is_match = stage2.consensus(sub, min_occupancy=0.5)
+        coord_map = {r.seq_id: (r.chrom, int(r.start), int(r.end), r.strand)
+                     for r in frags.assign(seq_id=[
+                         stage2.seq_id(cfg["assembly"], f.chrom, int(f.start),
+                                       int(f.end), f.strand)
+                         for f in frags.itertuples()]).itertuples()}
+        fin = stage2.finalize_alignment(
+            arecs, coord_map, min_occupancy=min_occ,
+            min_row_bp=int(seedcfg.get("min_frag_bp", stage2.MIN_FRAG_BP)))
+        m, is_match = fin["matrix"], fin["is_match"]
+        cons = fin["consensus"]
+        n_aln = int(m.shape[0])
         stage2.write_fasta(
             [(f"cluster_{cluster_id:05d}_{mode}_consensus", cons)],
             outdir / "consensus.fa")
+        pd.DataFrame(fin["dropped"]).to_csv(outdir / "dropped_rows.tsv",
+                                            sep="\t", index=False)
         # Depth is measured over MATCH columns only.  Averaging over the whole
         # trimmed span mixes in insert columns that exist because one or two
         # rows carry a long insertion, and reported a median depth of 6 for an
         # alignment whose match columns are 79 deep.
-        depth = (sub[:, is_match] != ord("-")).sum(axis=0)
+        depth = (m[:, is_match] != ord("-")).sum(axis=0)
         occ_stats = dict(
-            aln_width=int(m.shape[1]), trimmed_width=int(hi - lo),
-            trim_lo=lo, trim_hi=hi, n_match_columns=int(is_match.sum()),
+            aln_width=int(m.shape[1]), n_match_columns=int(is_match.sum()),
             median_depth=int(np.median(depth)), min_depth=int(depth.min()),
             max_depth=int(depth.max()),
             frac_cols_depth_ge3=float((depth >= 3).mean()),
+            n_rows_mafft_flipped=fin["n_flipped"],
+            n_rows_dropped=len(fin["dropped"]),
         )
+        lint_res = emit_seed(outdir, cluster_id, mode, fin, cfg)
 
     realized_full = int((sample.sampled_as == "full").sum())
     # Over-extension guard (PLAN_A 4.7): compare against the MEDIAN member
@@ -162,6 +242,7 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
         median_member_consensus_len=med_member,
         overextension_ratio=ratio,
         possible_overextension=overext,
+        lint=lint_res,
         mafft=aln_info,
         **occ_stats,
         elapsed_s=round(time.time() - t0, 1),

@@ -40,6 +40,13 @@ seed:
 consensus_engine: mafft     # mafft first (fastest to lintable), refiner later
 overextension_ratio: 1.5    # vs MEDIAN member consensus length
 kimura_cpg: true            # --no-kimura-cpg to disable
-au_string: "C. Goubert, Wheeler Lab"   # group feedback may change this
+# stk lint rejects abbreviated first names (au_format ERROR): "C. Goubert"
+# fails, "Clement Goubert" passes. ORCID prefix is optional but recommended:
+#   au_string: "ORCID:0000-0002-9269-4243 Clement Goubert"
+au_string: "Clement Goubert"   # placeholder pending group feedback
+taxon: "Gobius niger"          # #=GF OC, validated against NCBI taxonomy
+tp_default: "Interspersed_Repeat;Unknown"   # until tp_map.tsv exists
+tp_map: config/tp_map.tsv
+stk_bin: vendor/dfam-curator/target/release/stk
 
 tp_scheme_version: null
