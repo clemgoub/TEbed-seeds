@@ -31,8 +31,31 @@ def order_coherence(members: list[str], fam_order: dict[str, str],
     return votes[best] / tot, best
 
 
+def majority_path(members: list[str], fam_path: dict[str, str],
+                  weights: dict[str, float]) -> tuple[str | None, float]:
+    """Member-weighted majority canonical classification path.
+
+    Carried through to stage 2 because `#=GF TP` needs a classification and
+    `majority_order` alone ("LINE") is too coarse to map onto the Dfam
+    vocabulary. Uninformative paths abstain, exactly as order coherence does,
+    so a member that stops at "repeat" cannot outvote one that resolved a
+    superfamily.
+    """
+    votes: dict[str, float] = collections.defaultdict(float)
+    for m in members:
+        p = fam_path.get(m)
+        if not p or p in ("repeat", "repeat:TE"):
+            continue
+        votes[p] += weights.get(m, 1.0)
+    if not votes:
+        return None, 0.0
+    best = max(votes, key=votes.get)
+    return best, votes[best] / sum(votes.values())
+
+
 def evaluate_clusters(clusters: list[list[str]], evidence: pd.DataFrame,
-                      fam_order: dict[str, str], cfg: dict) -> pd.DataFrame:
+                      fam_order: dict[str, str], cfg: dict,
+                      fam_path: dict[str, str] | None = None) -> pd.DataFrame:
     """evidence: one row per 'tool:family' member with columns
     n_full_len, genomic_bp, cov_ge3_frac, div_median, frac_tandemtool.
     Missing members (e.g. EDTA families absent from the upstream evidence
@@ -45,6 +68,7 @@ def evaluate_clusters(clusters: list[list[str]], evidence: pd.DataFrame,
         sub = ev.reindex(members)
         w = dict(zip(members, sub.genomic_bp.fillna(0.0) + 1.0))
         coh, majority = order_coherence(members, fam_order, w)
+        mpath, mpath_frac = majority_path(members, fam_path or {}, w)
         pooled_full = float(np.nansum(sub.n_full_len))
         pooled_bp = float(np.nansum(sub.genomic_bp))
         tandem_frac = (float(np.nansum(sub.frac_tandemtool * sub.genomic_bp)) / pooled_bp
@@ -63,6 +87,7 @@ def evaluate_clusters(clusters: list[list[str]], evidence: pd.DataFrame,
         rows.append(dict(
             cluster_id=ci, n_members=len(members), n_tools=n_tools,
             members=";".join(members), majority_order=majority,
+            majority_path=mpath, majority_path_frac=round(mpath_frac, 3),
             order_coherence=round(coh, 3), pooled_full_len=int(pooled_full),
             pooled_bp=int(pooled_bp), tandem_frac=round(tandem_frac, 3) if not np.isnan(tandem_frac) else np.nan,
             div_median=round(div_med, 2) if not np.isnan(div_med) else np.nan,

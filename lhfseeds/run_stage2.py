@@ -40,7 +40,7 @@ INVARIANT_MODE = "hit_id"
 
 
 def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
-              cfg: dict, engine: str = "mafft") -> dict:
+              cfg: dict, engine: str = "mafft", tp_info: tuple = (None, "", "unmapped", None)) -> dict:
     """Write the Stockholm seed and lint it.
 
     `stk lint` is a SOFT gate by design (PLAN_A): a failing packet still goes to
@@ -51,7 +51,7 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
            for (c, s, e, st) in fin["coords"]]
     rows = ["".join(chr(x) for x in r).replace("-", stockholm.GAP)
             for r in fin["matrix"]]
-    tp = lookup_tp(cfg)
+    tp, tp_ver, tp_status, cpath = tp_info
     meta = {
         "ID": f"TEbedSeeds_c{cluster_id:05d}_{mode}_{engine}",
         "DE": (f"Consensus rebuilt from {len(ids)} genomic copies of "
@@ -61,7 +61,9 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
         "SQ": len(ids),
         "BM": f"TEbed-seeds {cfg.get('contract_version', '?')}; {engine}",
         "CC": [f"Rebuilt from track data; provenance in packet.json.",
-               f"Merge mode {mode}; one representative per deduplicated locus."],
+               f"Merge mode {mode}; one representative per deduplicated locus.",
+               f"Classification path {cpath or 'unresolved'}"
+               + (f"; TP scheme {tp_ver}" if tp_ver else "")],
         "RF": stockholm.rf_line(fin["consensus"], fin["is_match"]),
     }
     if tp:
@@ -71,7 +73,9 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
 
     stk_bin = Path(cfg.get("stk_bin",
                            "vendor/dfam-curator/target/release/stk")).expanduser()
-    res: dict = {"tp_emitted": bool(tp)}
+    res: dict = {"tp_emitted": bool(tp), "tp": tp,
+                 "tp_scheme_version": tp_ver, "tp_status": tp_status,
+                 "canonical_path": cpath}
     if not stk_bin.exists():
         res["error"] = f"stk binary not found at {stk_bin}"
         return res
@@ -92,24 +96,38 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
     return res
 
 
-def lookup_tp(cfg: dict) -> str | None:
-    """#=GF TP from config/tp_map.tsv.  An unmapped canonical path must BLOCK
-    the TP rather than guess one -- a wrong classification is worse than none."""
+def load_tp_map(cfg: dict) -> dict:
+    """canonical_path -> (tp, scheme_version, status)."""
     p = Path(cfg.get("tp_map", "config/tp_map.tsv"))
-    fallback = cfg.get("tp_default")
     if not p.exists():
-        return fallback
-    try:
-        t = pd.read_csv(p, sep="\t")
-    except Exception:
-        return fallback
+        return {}
+    t = pd.read_csv(p, sep="\t", comment="#")
     if "canonical_path" not in t.columns or "tp" not in t.columns:
-        return fallback
-    return fallback
+        return {}
+    return {r.canonical_path: (r.tp, getattr(r, "scheme_version", ""),
+                               getattr(r, "status", ""))
+            for r in t.itertuples()}
+
+
+def lookup_tp(tp_map: dict, canonical_path, cfg: dict) -> tuple:
+    """#=GF TP for a cluster's canonical path.
+
+    An unmapped path must BLOCK the TP rather than guess one: `tp_unknown` is a
+    lint ERROR, and a seed carrying a confidently WRONG classification is worse
+    than one carrying none -- the first is silently absorbed into Dfam, the
+    second is visibly incomplete. The packet records which scheme version was
+    used, because the Dfam scheme is being reconciled with Repbase and every
+    seed must say what it was classified against.
+    """
+    if canonical_path and canonical_path in tp_map:
+        tp, ver, status = tp_map[canonical_path]
+        return tp, ver, status, canonical_path
+    return None, "", "unmapped", canonical_path
 
 
 def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
-                 outdir: Path, cluster_id: int, threads: int = 1) -> dict:
+                 outdir: Path, cluster_id: int, threads: int = 1,
+                 tp_info: tuple = (None, "", "unmapped", None)) -> dict:
     outdir.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     pool = copies[copies.merge_mode.isin([mode, INVARIANT_MODE])]
@@ -223,7 +241,8 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
             stage2.write_fasta(
                 [(f"cluster_{cluster_id:05d}_{mode}_{eng}_consensus",
                   fin["consensus"])], outdir / f"consensus.{eng}.fa")
-            lr = emit_seed(outdir, cluster_id, mode, fin, cfg, engine=eng)
+            lr = emit_seed(outdir, cluster_id, mode, fin, cfg, engine=eng,
+                           tp_info=tp_info)
             st = dict(
                 engine=eng, alignment_rows=int(m.shape[0]),
                 aln_width=int(m.shape[1]), n_match_columns=int(is_match.sum()),
@@ -270,6 +289,8 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
                            loci.n_tools.value_counts().sort_index().items()},
         full_frac_by_support={int(k): round(float(v), 4) for k, v in
                               loci.groupby("n_tools").any_full.mean().items()},
+        canonical_path=tp_info[3], tp=tp_info[0],
+        tp_scheme_version=tp_info[1], tp_status=tp_info[2],
         modal_consensus_len=modal_cons,
         member_consensus_lens={m: float(v) for m, v in
                                pool.groupby("member").cons_len.median().items()},
@@ -325,12 +346,18 @@ def main(argv=None):
               else [cfg["merge_mode"]]))
 
     packets = []
+    tp_map = load_tp_map(cfg)
+    cand = pd.read_csv(work / f"candidates_{args.linkage}.tsv", sep="\t")
+    path_by_cluster = (dict(zip(cand.cluster_id, cand.majority_path))
+                       if "majority_path" in cand.columns else {})
+    if not path_by_cluster:
+        print("[stage2] candidates table has no majority_path column -- re-run "
+              "stage 0 to emit TP classifications", file=sys.stderr)
     if args.cluster:
         cids = args.cluster
     else:
-        cand = pd.read_csv(work / f"candidates_{args.linkage}.tsv", sep="\t")
-        cand = cand[cand.candidate].sort_values("pooled_full_len", ascending=False)
-        cids = [int(c) for c in cand.head(args.top).cluster_id]
+        sel = cand[cand.candidate].sort_values("pooled_full_len", ascending=False)
+        cids = [int(c) for c in sel.head(args.top).cluster_id]
 
     for cid in cids:
         cdir = work / "seed_packets" / f"cluster_{cid:05d}"
@@ -341,8 +368,11 @@ def main(argv=None):
             continue
         copies = pd.read_csv(cfile, sep="\t")
         for mode in modes:
+            cpath = path_by_cluster.get(cid)
+            cpath = None if pd.isna(cpath) else cpath
+            tp_info = lookup_tp(tp_map, cpath, cfg)
             p = build_packet(copies, mode, fa, cfg, cdir / mode, cid,
-                             threads=args.threads)
+                             threads=args.threads, tp_info=tp_info)
             packets.append(p)
             if "error" in p:
                 print(f"[stage2] cluster {cid} {mode}: {p['error']}", file=sys.stderr)
@@ -353,6 +383,40 @@ def main(argv=None):
                   f"aln rows, consensus {p['rebuilt_consensus_len']} bp, "
                   f"median depth {p.get('median_depth', 0)} [{p['elapsed_s']}s]",
                   file=sys.stderr)
+
+    # Batch lint triage (PLAN_A 4.5). `stk lint` is a SOFT gate: a failing
+    # packet is still queued, flagged, with its lint output attached. The point
+    # of the triage table is that the failure CODES are counted across the
+    # batch, so a systematic format error shows up as one row to fix rather
+    # than as N packets quietly dropped.
+    tri = []
+    for p in packets:
+        for eng, est in (p.get("engines") or {}).items():
+            if "error" in est:
+                tri.append(dict(cluster_id=p["cluster_id"], mode=p["mode"],
+                                engine=eng, tier="engine", severity="ERROR",
+                                code="engine_failed", n=1,
+                                detail=est["error"][:200]))
+                continue
+            for tier in ("tier1", "genome"):
+                res = (est.get("lint") or {}).get(tier) or {}
+                for code, n in (res.get("codes") or {}).items():
+                    sev, _, name = code.partition(":")
+                    tri.append(dict(cluster_id=p["cluster_id"], mode=p["mode"],
+                                    engine=eng, tier=tier, severity=sev,
+                                    code=name, n=n, detail=""))
+    tri_df = pd.DataFrame(tri)
+    if len(tri_df):
+        tri_df.to_csv(work / "lint_triage.tsv", sep="\t", index=False)
+        roll = (tri_df.groupby(["severity", "code"])
+                      .agg(packets=("cluster_id", "size"), total=("n", "sum"))
+                      .sort_values(["severity", "total"], ascending=[True, False]))
+        print("\n[stage2] lint triage across the batch:", file=sys.stderr)
+        print(roll.to_string(), file=sys.stderr)
+        n_err = int(tri_df[tri_df.severity == "ERROR"].cluster_id.nunique())
+        print(f"[stage2] packets with >=1 lint ERROR: {n_err} / {len(packets)} "
+              f"(soft gate -- all are still queued, each with lint.<engine>.txt)",
+              file=sys.stderr)
 
     cmp = pd.DataFrame([{k: v for k, v in p.items()
                          if not isinstance(v, (dict, list))} for p in packets])

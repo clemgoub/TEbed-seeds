@@ -289,10 +289,24 @@ and what the rebuilt sequence shows is exactly the F2 caveat, and it is an
 argument for putting the rebuilt consensus, not the inherited label, in front
 of the curator.
 
+**Against RepeatModeler's own seed alignment.** GenomeArk also publishes
+rm2's `.stk` seeds for this assembly, so the comparison can be made at the
+*seed* level rather than only at the consensus level. Its record for
+`rnd-1_family-286` carries **100 sequence rows, median span 265 bp** — the same
+length this pipeline rebuilds. **All 100 of those loci are present in our
+locus set** (>=50% reciprocal overlap), which contains **35,205**. So the
+track-derived locus discovery is a strict superset of what RepeatModeler
+sampled for its own seed, and the disagreement between the two seeds is a
+matter of *which* copies were chosen, not of which copies exist.
+
+Worth noting for the deck: rm2's own seed record would **not** pass
+`stk lint`. It carries `DE`, `TP`, `CC`, `BM` and `SQ` but no `AU` and no `OC`
+(both required, both ERRORs), and its identifiers omit the assembly accession
+(`OX637605.1:2145865-2146095_+` rather than Smitten). The gap between "what a
+tool emits" and "what Dfam accepts" is exactly the gap this pipeline closes.
+
 **Slide home:** the validation slide — this is the evidence that rebuilding
-from copies works at all, and it is the natural place to introduce the
-comparison against RepeatModeler's own seeds (its `.stk` for the same
-assembly is public and carries 100 rows for `rnd-1_family-286`).
+from copies works at all, paired with the seed-level comparison above.
 
 ---
 

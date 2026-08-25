@@ -83,10 +83,12 @@ def main(argv=None):
 
     t0 = time.time()
     fam_hits = {t: stage0.load_families(repo, t, cm) for t in clusterable}
-    fam_order = {}
+    fam_order, fam_path = {}, {}
     for t, df in fam_hits.items():
         for f, o in df.attrs["fam_order"].items():
             fam_order[f"{t}:{f}"] = o
+        for f, pth in df.attrs["fam_path"].items():
+            fam_path[f"{t}:{f}"] = pth
     sizes_file = repo / "data" / f"{cfg['assembly']}.chrom.sizes"
     sz = pd.read_csv(sizes_file, sep="\t", names=["chrom", "size"])
     chrom_sizes = dict(zip(sz.chrom, sz["size"]))
@@ -111,7 +113,8 @@ def main(argv=None):
         clusters = (stage0.link_strict(edges) if mode == "strict"
                     else stage0.link_lenient(edges, cfg["density_tau"]))
         diag = stage0.diagnostics(clusters, edges, fam_order)
-        cand = gates.evaluate_clusters(clusters, evidence, fam_order, cfg)
+        cand = gates.evaluate_clusters(clusters, evidence, fam_order, cfg,
+                                       fam_path=fam_path)
         cand.to_csv(work / f"candidates_{mode}.tsv", sep="\t", index=False)
         results[mode] = dict(diag=diag, n_candidates=int(cand.candidate.sum()))
         print(f"[stage0:{mode}] clusters={diag['n_clusters']} max={diag['max_size']} "

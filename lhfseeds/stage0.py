@@ -109,6 +109,7 @@ def load_families(repo: Path, tool: str, class_map) -> pd.DataFrame:
             if not p.startswith(NONFAMILY_PATH_PREFIXES) and not f.startswith("(")}
     df = df[df.name.isin(keep)].copy()
     df.attrs["fam_order"] = {f: fam_order[f] for f in keep}
+    df.attrs["fam_path"] = {f: fam_path[f] for f in keep}
     return df
 
 
