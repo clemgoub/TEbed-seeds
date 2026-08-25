@@ -549,3 +549,32 @@ def parse_refiner_id(rid: str, coords: dict) -> tuple | None:
         ns, ne = e - b, e - (a - 1)
     final = strand if sub_strand == "+" else ("-" if strand == "+" else "+")
     return chrom, ns, ne, final
+
+
+def verify_rows_against_genome(coords: list, rows: list[str],
+                               fa: IndexedFasta) -> dict:
+    """Check every seed row's sequence against the assembly ourselves.
+
+    `stk lint --genome` reports coordinate problems only as WARN and exits 0,
+    and a row whose identifier Smitten cannot parse is dropped from validation
+    with NO diagnostic at all -- so a clean lint run is not by itself evidence
+    that the coordinates were checked. This does the check directly and counts
+    the rows, which makes silence impossible to mistake for success.
+    """
+    n_ok, bad = 0, []
+    for (chrom, s, e, strand), row in zip(coords, rows):
+        seq = row.upper().replace(".", "").replace("-", "")
+        if chrom not in fa:
+            bad.append(dict(chrom=chrom, start=s, end=e, reason="chrom_absent"))
+            continue
+        ref = fa.fetch(chrom, s, e).upper()
+        if strand == "-":
+            ref = revcomp(ref)
+        if seq == ref:
+            n_ok += 1
+        else:
+            bad.append(dict(chrom=chrom, start=s, end=e, strand=strand,
+                            reason="sequence_mismatch",
+                            row_len=len(seq), ref_len=len(ref)))
+    return dict(n_rows=len(rows), n_verified=n_ok, n_bad=len(bad),
+                all_verified=len(bad) == 0, bad=bad[:20])

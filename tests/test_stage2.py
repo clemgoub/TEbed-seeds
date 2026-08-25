@@ -248,3 +248,37 @@ def test_extract_reverse_complements_minus_and_accounts_for_flanks():
             == stats.length.iat[0] + fstats.flank_left.iat[0]
             + fstats.flank_right.iat[0])
     assert recs[0][0] == "GCA_X:%s:1001-1100_-" % ch
+
+
+@needs_genome
+def test_verify_rows_against_genome_catches_a_shifted_row():
+    """`stk lint --genome` reports coordinate problems as WARN and exits 0, and
+    silently drops rows whose identifier it cannot parse -- so the pipeline
+    checks coordinates itself and counts the rows it checked."""
+    fa = IndexedFasta(GENOME)
+    ch = next(iter(fa.index))
+    plus = fa.fetch(ch, 1000, 1060)
+    minus = revcomp(fa.fetch(ch, 2000, 2060))
+    coords = [(ch, 1000, 1060, "+"), (ch, 2000, 2060, "-")]
+    ok = stage2.verify_rows_against_genome(coords, [plus, minus], fa)
+    assert ok["all_verified"] and ok["n_verified"] == 2
+
+    # a 500 bp shift must be caught, and a wrong strand must be caught
+    shifted = [(ch, 1500, 1560, "+"), (ch, 2000, 2060, "-")]
+    bad = stage2.verify_rows_against_genome(shifted, [plus, minus], fa)
+    assert not bad["all_verified"] and bad["n_bad"] == 1
+
+    flipped = [(ch, 1000, 1060, "-"), (ch, 2000, 2060, "-")]
+    bad2 = stage2.verify_rows_against_genome(flipped, [plus, minus], fa)
+    assert not bad2["all_verified"], "wrong strand must not verify"
+
+
+def test_verify_rows_tolerates_stockholm_gaps_in_the_row():
+    """Rows arrive with Dfam '.' gaps; the check compares ungapped sequence."""
+    class FakeFa:
+        index = {"c1": None}
+        def __contains__(self, c): return c == "c1"
+        def fetch(self, c, s, e): return "ACGTACGT"[s:e]
+    res = stage2.verify_rows_against_genome(
+        [("c1", 0, 8, "+")], ["ACGT....ACGT".replace("....", "")], FakeFa())
+    assert res["all_verified"]

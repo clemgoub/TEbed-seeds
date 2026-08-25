@@ -40,7 +40,9 @@ INVARIANT_MODE = "hit_id"
 
 
 def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
-              cfg: dict, engine: str = "mafft", tp_info: tuple = (None, "", "unmapped", None)) -> dict:
+              cfg: dict, engine: str = "mafft",
+              tp_info: tuple = (None, "", "unmapped", None),
+              fa: IndexedFasta | None = None) -> dict:
     """Write the Stockholm seed and lint it.
 
     `stk lint` is a SOFT gate by design (PLAN_A): a failing packet still goes to
@@ -85,12 +87,23 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
     if stockholm.update_consensus(stk_path, tmp_rf, stk_bin):
         stk_path.unlink()
         tmp_rf.rename(stk_path)
+    # Our own coordinate check, because lint's is advisory: --genome reports
+    # every coordinate problem as WARN and still exits 0, and an unparseable
+    # identifier is dropped from validation silently.
+    if fa is not None:
+        res["coord_check"] = stage2.verify_rows_against_genome(
+            fin["coords"], rows, fa)
     res["tier1"] = stockholm.lint(stk_path, stk_bin, no_network=True)
     genome = cfg.get("assembly_fasta")
     if genome:
         res["genome"] = stockholm.lint(stk_path, stk_bin,
                                        genome=Path(genome).expanduser(),
                                        no_network=True)
+        coord_codes = {"seq_coord_invalid", "seq_coord_fixed",
+                       "seq_id_not_in_ref"}
+        res["genome_coord_warnings"] = sum(
+            n for c, n in res["genome"]["codes"].items()
+            if c.split(":", 1)[-1] in coord_codes)
     (outdir / f"lint.{engine}.txt").write_text(
         res["tier1"]["output"] + "\n" + res.get("genome", {}).get("output", ""))
     return res
@@ -242,7 +255,7 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
                 [(f"cluster_{cluster_id:05d}_{mode}_{eng}_consensus",
                   fin["consensus"])], outdir / f"consensus.{eng}.fa")
             lr = emit_seed(outdir, cluster_id, mode, fin, cfg, engine=eng,
-                           tp_info=tp_info)
+                           tp_info=tp_info, fa=fa)
             st = dict(
                 engine=eng, alignment_rows=int(m.shape[0]),
                 aln_width=int(m.shape[1]), n_match_columns=int(is_match.sum()),
