@@ -86,14 +86,31 @@ def main(argv=None):
         # length-carrying mates only 4 had L/mate ~ k -- for the other 14 the
         # consensus was already SHORTER than their mates', so dividing would
         # have compounded the error up to 5x.
-        deconvolved = {}
+        # The rule abstains unless the MATES AGREE WITH EACH OTHER. Inheriting
+        # from cluster-mates can otherwise inherit an over-assembly: a cluster
+        # with only two length-carrying members, one of them collapsed, has a
+        # median that is already wrong. Requiring >=2 other members whose
+        # lengths agree within `mate_spread_max` makes the reference a genuine
+        # cross-tool consensus rather than a single opinion.
+        deconvolved, abstained = {}, {}
         ratio_min = float(cfg.get("overassembly_min_ratio", 1.8))
+        spread_max = float(cfg.get("overassembly_mate_spread_max", 1.3))
         lens = {m: v for m, v in conslen.items() if not np.isnan(v)}
         for m, own in lens.items():
             others = [v for k, v in lens.items() if k != m]
             if len(others) < 2:
                 continue
             mate = float(np.median(others))
+            spread = max(others) / max(min(others), 1e-9)
+            if mate > 0 and own / mate >= ratio_min and spread > spread_max:
+                abstained[m] = dict(own=own, mate=mate,
+                                    mate_spread=round(spread, 2),
+                                    reason="cluster-mates disagree with each "
+                                           "other; cannot tell which is the unit")
+                print(f"[stage1] cluster {cid}: {m} is {own/mate:.2f}x its "
+                      f"mates but the mates spread {spread:.2f}x -- ABSTAINING",
+                      file=sys.stderr)
+                continue
             if mate > 0 and own / mate >= ratio_min:
                 deconvolved[m] = dict(own=own, mate=mate,
                                       ratio=round(own / mate, 3),
@@ -171,9 +188,13 @@ def main(argv=None):
 
         copies = pd.concat(all_copies, ignore_index=True)
         copies.to_csv(cdir / "copies.tsv", sep="\t", index=False)
-        if deconvolved:
-            pd.DataFrame([dict(member=m, **v) for m, v in deconvolved.items()]
-                         ).to_csv(cdir / "deconvolved.tsv", sep="\t", index=False)
+        if deconvolved or abstained:
+            pd.DataFrame(
+                [dict(member=m, action="deconvolved", **v)
+                 for m, v in deconvolved.items()]
+                + [dict(member=m, action="abstained", **v)
+                   for m, v in abstained.items()]
+            ).to_csv(cdir / "deconvolved.tsv", sep="\t", index=False)
         for mode in ["merge_always", "gap_aware", "hit_id"]:
             sub = copies[copies.merge_mode == mode]
             if not len(sub):

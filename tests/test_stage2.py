@@ -310,3 +310,35 @@ def test_near_full_length_is_false_without_consensus_coordinates():
     copies = pd.DataFrame([dict(cons_start=np.nan, cons_end=np.nan)])
     assert not stage1.near_full_length(copies, 265.0).iat[0]
     assert not stage1.near_full_length(copies, float("nan")).iat[0]
+
+
+# ------------------------------------------------------------- lint wrapper
+STK_BIN = ROOT / "vendor" / "dfam-curator" / "target" / "release" / "stk"
+needs_stk = pytest.mark.skipif(not STK_BIN.exists(), reason="stk not built")
+
+
+@needs_stk
+def test_lint_does_not_read_an_io_failure_as_clean():
+    """There is no exit code 2: `stk` exits 1 both for "emitted an ERROR" and
+    for an I/O failure, and an I/O failure emits NO diagnostics -- so a file
+    that could not even be opened came back with n_error == 0."""
+    r = stockholm.lint(Path("/nonexistent/nope.stk"), STK_BIN)
+    assert r["returncode"] != 0
+    assert r["n_error"] == 0, "no diagnostics are emitted for an I/O failure"
+    assert r["io_failure"] is True
+    assert r["clean"] is False
+
+
+@needs_stk
+def test_lint_clean_requires_no_coordinate_warnings(tmp_path):
+    """`stk lint --genome` reports coordinate problems as WARN and exits 0, so
+    exit status and n_error both miss them."""
+    rec = stockholm.format_record(
+        ["GCA_1:c1:1-8_+"], ["ACGTACGT"],
+        {"DE": "d", "AU": "Ada Lovelace", "TP": "Interspersed_Repeat;Unknown",
+         "OC": "Gobius niger", "SQ": 1, "RF": "ACGTACGT"})
+    f = tmp_path / "x.stk"
+    stockholm.write_stockholm(f, [rec])
+    r = stockholm.lint(f, STK_BIN)
+    assert r["io_failure"] is False
+    assert "n_coord_warnings" in r and "clean" in r

@@ -74,54 +74,105 @@ default on the secondary criteria instead.
 
 ---
 
-## F4. A tool consensus can be an over-assembly of tandem units — measured instance
+## F4. A tool consensus can be an over-assembly of tandem units — confirmed for four REPET entries, and NOT generalisable
 
-**Prompted by:** the observation that cluster 62's two REPET families have
-suspiciously clean consensus lengths of **764 and 765 bp**, and the hypothesis
-that this reflects a palindromic/MITE structure worth tolerating.
+**Prompted by:** cluster 62's two REPET families having suspiciously clean
+consensus lengths of **764 and 765 bp**, against 264–269 bp from rm2, pantera
+and edta for the same element, and the hypothesis that this was a
+palindromic/MITE structure worth tolerating.
 
-**Palindromic structure: NOT supported.** Among rm2 hits of the cluster's
-269 bp family, consecutive hits within 700 bp are **75% SAME strand** — only
-**25% opposite**, i.e. *below* the 50% expected by chance. A palindromic
-element whose library consensus captured one arm would produce an excess of
-opposite-strand adjacent pairs. There is none.
+### Confirmed: the 765 bp entries are ~3 tandem units of a ~255 bp element
 
-**What the 765 bp actually looks like:**
+- **Palindromic structure: refuted.** Adjacent rm2 hits within 700 bp are
+  **75% same-strand**; a palindrome would show an *excess* of opposite-strand
+  pairs, not a deficit.
+- **rm2's 269 bp entry is the UNIT, not a fragment.** Self-alignment shows no
+  same-strand off-diagonal at any offset (tandem cover 0.00 for k=2…5). Its
+  only off-diagonal is a **14 bp opposite-strand terminal pair — a terminal
+  inverted repeat** (10 bp perfect, `CTTTAAAGGG`). It is a TIR element / MITE.
+- **k=3 is uniquely identified for the REPET entries.** Phase enrichment for
+  `G1303-Map20` (L=764) across k = 2 / 2.5 / 3 / 3.5 / 4 / 4.5 / 5 / 6 is
+  0.053 / 1.152 / **2.839** / 0.245 / 0.569 / 0.449 / 0.737 / 0.854 — k=3 is
+  the only value above 1.16. `G1473-Map8` (L=765) behaves the same. Their
+  internal endpoint modes sit at 260 bp and 500 bp: the two boundaries of a
+  3 × 255 bp array.
+- **Two further instances found**, not previously known:
+  `Gnig_TEdenovoGr-B-G1039-Map3` (765 bp) and `Gnig_TEdenovoGr-B-G1568-Map3`
+  (771 bp), in two other clusters, both k=3, unit 254.7–257.0 bp, each with
+  rm2/pantera mates at 264–270 bp. Four REPET entries in total.
 
-- REPET copies of the 765 bp consensus have median length **223 bp** — they
-  cover only **29% of their own consensus** (p75 = 266 bp = 35%).
-- Their match coordinates along the consensus cluster into **three blocks**
-  (start quantiles 2 / 264 / 539; end quantiles 262 / 511 / 765), i.e. three
-  consecutive ~250 bp segments rather than a uniform spread.
-- 765 / 3 ≈ 255 bp, and the independent rm2 and pantera consensi for the same
-  cluster are **269 and 264 bp**.
-- rm2 hits form **2,892 same-strand tandem runs** (2,727 of them exactly two
-  units), median run span **623 bp**.
+### Refuted: there is no measurable per-tool over-assembly rate
 
-**Reading:** the true repeated unit is ~265 bp, and REPET's 765 bp entry is
-most consistent with **~3 tandem units collapsed into one library consensus** —
-the *consensus-level* analogue of F1's runaway merge chain. Both REPET families
-in the cluster show the same length, and they partition loci almost perfectly
-(0.2% overlap of 3,073 vs 3,280 copies), which is the classic signature of
-redundant library entries dividing copies between them rather than
-double-annotating.
+A coordinate-only detector was built (`tools/detect_overassembly.py`, no
+library sequence needed) and run over all 31,078 families in the five
+clusterable BEDs; 3,650 were testable, 69 flagged. **It does not support a
+rate**, on three independent grounds:
 
-**The implication inverts the original instinct:** the clean 765 bp pattern is
-meaningful, but it should **not** be tolerated as the element length. Treating
-it as ground truth makes every genuine copy look 71% truncated and would sink
-them at any near-full-length gate. This is a concrete instance of the
-"tool consensus may itself be wrong" caveat that has governed this project from
-the start — now with a measurable signature: *median copy length ≈ consensus
-length ÷ small integer, plus block-structured match coordinates.*
+1. **Calibration against a decoy null.** Applying the identical criterion at
+   *half-integer* k′ (2.5 / 3.5 / 4.5), which no tandem array can produce,
+   gives real 70 vs decoy 74.7 once matched — **ratio 0.94, p = 0.72**. Per
+   tool: rm2 0.78, pantera 0.30, repet 1.16 (p = 0.17). There is no excess of
+   integer-k structure anywhere.
+2. **Measured sensitivity is ~0 on real cases.** An all-vs-all blastn of the
+   rm2 consensus library — which was on disk the whole time — finds **68 of
+   2,550 rm2 consensi carrying internal same-strand tandem structure**. The
+   detector flags essentially none of them: sensitivity **0/8** on
+   sequence-verified rm2 over-assemblies. `rnd-3_family-566` (821 bp) is a
+   textbook 3 × 273 bp array by self-alignment (560 bp HSP at offset 266,
+   92.5%; 287 bp at offset 522) and fails the detector's own length-
+   commensurability condition. **So "rm2 shows no over-assemblies" is false** —
+   the screen simply cannot see them.
+3. **Tuning-dependence.** The phase histogram's bin count is arbitrary; three
+   of the four confirmed families lose their flag at `n_bins=16`. And the
+   enrichment level claimed as diagnostic (≥2.6) is reached by **6.1% of all
+   testable families**, 194 of which are not flagged.
 
-**Definitive test needs sequence** (not yet on hand): self-align the 765 bp
-consensus — three tandem blocks would appear as off-diagonal repeats — and
-align it against the rm2/pantera 265 bp consensi. Requires the REPET library
-FASTA. **This is the parallel-agent task briefed in `RESUME.md`.**
+The cross-tool ratio that *does* confirm the four REPET entries is not
+specific on its own either: across all 1,546 cluster members with
+length-carrying mates, **243 hit some integer k in 2…5** — 103 rm2, 139 repet,
+47 pantera. Confirmation needs both legs, and even then it is a screen.
 
-**Slide home:** a new stage-1.5 slide, "when the library consensus is the
-problem" — it motivates rebuilding consensi from copies, which is the whole
-premise of the pipeline.
+**The honest statement:** four REPET entries in this assembly are confirmed
+over-assemblies. Nothing can be said about how common the phenomenon is per
+tool, because the only sequence-free screen available has ~zero measured
+sensitivity. *A per-tool rate requires the libraries.*
+
+### The pipeline consequence, and its size
+
+Judging copies of an over-assembled entry against its own consensus makes real
+copies look 71% truncated. Pooled over the four confirmed families (10,229
+hits), near-full-length under each rule, against a cross-tool ground truth of
+**49.5%** taken from the independent rm2 consensus of the same element:
+
+| rule | near-full-length |
+|---|---|
+| its own 764–771 bp consensus (old behaviour) | **0.74%** — ~67× too low |
+| unit length, "both ends reached" test kept | 25.2% — wrong, mixes coordinate systems |
+| **span-only against the unit length** | **58.2%** — closest to truth |
+
+**Implemented:** when a member's modal consensus length is ≥1.8× the median of
+its cluster-mates', stage 1 substitutes the mate length, records
+`cons_len_source = deconvolved`, and switches that member to a **span-only**
+near-full-length test (its `repeat_start`/`repeat_end` live in the collapsed
+entry's coordinate system, so "reached both ends" is not a meaningful question
+about one unit).
+
+**Deliberately not divide-by-k**: k is not identified by coordinates, and of 18
+flagged families with length-carrying mates only 4 had L/mate ≈ k. For the
+other 14 the consensus was already *shorter* than their mates', so dividing
+would have compounded the error up to 5×.
+
+**And the rule abstains when the mates disagree with each other.** Inheritance
+can otherwise inherit an over-assembly: rm2 `rnd-4_family-1503` (2,533 bp, a
+sequence-verified dimer) has exactly one length-carrying mate, so a median over
+mates would have been a single opinion, not a consensus. Abstentions are
+recorded in `deconvolved.tsv` alongside the substitutions.
+
+**Slide home:** a stage-1.5 slide, "when the library consensus is the problem".
+The strongest version of the slide is the 0.74% → 49.5% gap, plus the negative
+result: the tempting sequence-free detector does not work, and the thing that
+does work is *having the cluster* — which is the argument for the whole
+pipeline.
 
 ---
 

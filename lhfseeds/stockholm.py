@@ -109,9 +109,19 @@ def lint(stk: Path, stk_bin: Path, genome: Path | None = None,
                         codes[f"{sev}:{parts[j + 1]}"] = \
                             codes.get(f"{sev}:{parts[j + 1]}", 0) + 1
                 break
+    n_error = sum(v for k, v in codes.items() if k.startswith("ERROR"))
+    # There is no exit code 2: `stk` exits 1 both for "emitted an ERROR" and
+    # for an I/O failure, and an I/O failure emits NO diagnostics at all.
+    # Without this, a file that could not even be opened comes back with
+    # n_error == 0 and reads as clean.
+    io_failure = p.returncode != 0 and n_error == 0
+    coord_codes = {"seq_coord_invalid", "seq_coord_fixed", "seq_id_not_in_ref"}
+    n_coord_warn = sum(v for k, v in codes.items()
+                       if k.split(":", 1)[-1] in coord_codes)
     return dict(cmd=" ".join(cmd), returncode=p.returncode, output=out,
-                codes=codes,
-                n_error=sum(v for k, v in codes.items() if k.startswith("ERROR")))
+                codes=codes, n_error=n_error, io_failure=io_failure,
+                n_coord_warnings=n_coord_warn,
+                clean=(not io_failure and n_error == 0 and n_coord_warn == 0))
 
 
 def update_consensus(stk: Path, out: Path, stk_bin: Path) -> bool:
