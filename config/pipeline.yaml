@@ -1,0 +1,37 @@
+# TEbed-seeds pipeline configuration
+contract_version: 1
+
+vgp_tebed_repo: ~/Documents/VGP_TEbed   # sync-contract source (read-only)
+work_dir: runs                          # --work-dir overrides (gitignored by default)
+
+assembly: GCA_951799975.1
+assembly_fasta: null                    # REQUIRED for stage >=1; provide path
+
+# stage 0 -- candidate identification
+edge_min_joint_bp: 500      # measured: 500 recovers MITE links 1kb starves (94 edges, 100% MITE-scale)
+edge_min_reciprocal: 0.5    # joint >= this fraction of the SMALLER footprint
+linkage: strict             # strict | lenient  (first batch: run both, compare)
+density_tau: 0.5            # lenient mode: split clusters below this density
+order_coherence_min: 0.667  # G3
+gates:
+  min_pooled_full_length: 5     # G1
+  min_pooled_depth: 3           # G2
+  max_tandem_overlap: 0.30      # G4
+  max_median_divergence: 25.0   # G5
+  min_tools: 2                  # G6
+
+# stage 1 -- copies
+merge_mode: both            # merge_always | gap_aware | both (first batch: both, compare)
+flank_bp: 500
+sampling:
+  cap: 100
+  floor: 10
+  full_length_frac: 0.60
+
+# stage 2-3 -- consensus + seed
+consensus_engine: mafft     # mafft first (fastest to lintable), refiner later
+overextension_ratio: 1.5    # vs MEDIAN member consensus length
+kimura_cpg: true            # --no-kimura-cpg to disable
+au_string: "C. Goubert, Wheeler Lab"   # group feedback may change this
+
+tp_scheme_version: null
