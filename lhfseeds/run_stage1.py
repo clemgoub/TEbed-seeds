@@ -86,12 +86,20 @@ def main(argv=None):
         # length-carrying mates only 4 had L/mate ~ k -- for the other 14 the
         # consensus was already SHORTER than their mates', so dividing would
         # have compounded the error up to 5x.
-        # The rule abstains unless the MATES AGREE WITH EACH OTHER. Inheriting
-        # from cluster-mates can otherwise inherit an over-assembly: a cluster
-        # with only two length-carrying members, one of them collapsed, has a
-        # median that is already wrong. Requiring >=2 other members whose
-        # lengths agree within `mate_spread_max` makes the reference a genuine
-        # cross-tool consensus rather than a single opinion.
+        # The rule abstains unless the reference length is SUPPORTED BY A
+        # MAJORITY of the mates. Inheriting from cluster-mates can otherwise
+        # inherit an over-assembly: a cluster with only two length-carrying
+        # members, one of them collapsed, has a median that is already a single
+        # opinion (measured counter-example: rm2 rnd-4_family-1503, a
+        # sequence-verified 2,533 bp dimer with exactly one length-carrying
+        # mate).
+        #
+        # Support is counted as "how many mates sit within mate_spread_max of
+        # the median", NOT as the spread of all mates. The spread test was
+        # tried first and abstained on the very cases it was meant to allow:
+        # cluster 62 contains TWO over-assembled REPET entries, so each one
+        # sees the other among its mates and the max/min spread is 2.9x even
+        # though 3 of the 4 mates agree on ~265 bp.
         deconvolved, abstained = {}, {}
         ratio_min = float(cfg.get("overassembly_min_ratio", 1.8))
         spread_max = float(cfg.get("overassembly_mate_spread_max", 1.3))
@@ -101,18 +109,23 @@ def main(argv=None):
             if len(others) < 2:
                 continue
             mate = float(np.median(others))
-            spread = max(others) / max(min(others), 1e-9)
-            if mate > 0 and own / mate >= ratio_min and spread > spread_max:
-                abstained[m] = dict(own=own, mate=mate,
-                                    mate_spread=round(spread, 2),
-                                    reason="cluster-mates disagree with each "
-                                           "other; cannot tell which is the unit")
-                print(f"[stage1] cluster {cid}: {m} is {own/mate:.2f}x its "
-                      f"mates but the mates spread {spread:.2f}x -- ABSTAINING",
-                      file=sys.stderr)
+            if mate <= 0 or own / mate < ratio_min:
                 continue
-            if mate > 0 and own / mate >= ratio_min:
+            agree = [v for v in others
+                     if 1 / spread_max <= v / mate <= spread_max]
+            if len(agree) < 2 or len(agree) < 0.5 * len(others):
+                abstained[m] = dict(own=own, mate=mate,
+                                    n_mates=len(others), n_agreeing=len(agree),
+                                    reason="no majority of cluster-mates agrees "
+                                           "on a reference length")
+                print(f"[stage1] cluster {cid}: {m} is {own/mate:.2f}x its "
+                      f"mates but only {len(agree)}/{len(others)} mates agree "
+                      f"on a reference -- ABSTAINING", file=sys.stderr)
+                continue
+            mate = float(np.median(agree))    # reference = the agreeing mates
+            if own / mate >= ratio_min:
                 deconvolved[m] = dict(own=own, mate=mate,
+                                      n_agreeing=len(agree),
                                       ratio=round(own / mate, 3),
                                       k_implied=round(own / mate, 1))
                 conslen[m] = mate

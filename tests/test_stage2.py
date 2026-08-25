@@ -342,3 +342,49 @@ def test_lint_clean_requires_no_coordinate_warnings(tmp_path):
     r = stockholm.lint(f, STK_BIN)
     assert r["io_failure"] is False
     assert "n_coord_warnings" in r and "clean" in r
+
+
+def _deconv_decision(lens, ratio_min=1.8, spread_max=1.3):
+    """Mirror of the rule in run_stage1 (kept in step with it by the tests
+    below); see PIPELINE_FINDINGS F4."""
+    out = {}
+    for m, own in lens.items():
+        others = [v for k, v in lens.items() if k != m]
+        if len(others) < 2:
+            out[m] = "skip"
+            continue
+        mate = float(np.median(others))
+        if mate <= 0 or own / mate < ratio_min:
+            out[m] = "keep"
+            continue
+        agree = [v for v in others if 1 / spread_max <= v / mate <= spread_max]
+        if len(agree) < 2 or len(agree) < 0.5 * len(others):
+            out[m] = "abstain"
+            continue
+        ref = float(np.median(agree))
+        out[m] = "deconvolve" if own / ref >= ratio_min else "keep"
+    return out
+
+
+def test_deconvolution_fires_when_two_members_are_over_assembled():
+    """Cluster 62 has TWO over-assembled REPET entries, so each sees the other
+    among its mates. A max/min spread test abstained on exactly the cases it
+    was meant to allow; support must be counted as a majority around the
+    median instead."""
+    d = _deconv_decision({"rm2": 269., "pantera": 264., "edta": 264.,
+                          "repetA": 764., "repetB": 765.})
+    assert d["repetA"] == d["repetB"] == "deconvolve"
+    assert d["rm2"] == d["pantera"] == d["edta"] == "keep"
+
+
+def test_deconvolution_refuses_a_single_length_carrying_mate():
+    """rm2 rnd-4_family-1503 is a sequence-verified 2,533 bp dimer with exactly
+    one length-carrying mate; a median over one mate is an opinion, not a
+    consensus, and inheritance would just inherit the over-assembly."""
+    assert _deconv_decision({"dimer": 2533., "mate": 1266.})["dimer"] == "skip"
+
+
+def test_deconvolution_does_not_touch_an_ordinary_cluster():
+    d = _deconv_decision({"rm2": 378., "pantera": 351., "edta": 351.,
+                          "repet": 367.})
+    assert set(d.values()) == {"keep"}

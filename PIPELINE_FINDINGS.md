@@ -246,34 +246,61 @@ support/completeness table belong together.
 
 ## F8. At seed level the merge modes are indistinguishable — the decision falls to the secondary criteria
 
-**Measured (stage 2, clusters 62 and 540, 100 sampled copies each):**
+**Measured across 12 candidate clusters, both modes, 100 sampled copies each,
+MAFFT** (rebuilt consensus lengths span 265–721 bp, so this is not one element
+type):
 
-| cluster | mode | loci | rebuilt consensus | match columns | median depth | bridged rows | copies > 1.5x modal |
-|---|---|---|---|---|---|---|---|
-| 62 | merge_always | 34,738 | 265 bp | 265 | 73 | 2 | 588 |
-| 62 | gap_aware | 35,194 | **265 bp** | 265 | 73 | **0** | **571** |
-| 540 | merge_always | 11,486 | 364 bp | 364 | 66 | 5 | 112 |
-| 540 | gap_aware | 11,978 | **363 bp** | 363 | 68 | **1** | **90** |
+| quantity | gap_aware − merge_always (median) | clusters where gap_aware is better |
+|---|---|---|
+| rebuilt consensus length | **−0.5 bp** | 4 better / 6 worse / 2 equal |
+| median seed depth | **+1.0** | 7 / 12 |
+| deduplicated loci available | **+580** | **12 / 12** |
+| bridged (multi-fragment) rows in the seed | **−4** | **10 / 12** |
+| copies over 1.5× the modal consensus | **−9.5** | **10 / 12** |
 
-**The decisive test was expected to be seed depth and rebuilt consensus length
-(RESUME step 4.6). It is not decisive: those two numbers are identical.**
-Rebuilt consensus differs by 0 bp (cluster 62) and 1 bp (cluster 540); median
-depth differs by 0 and 2. Whatever merge-always absorbs into its copies, the
-alignment and consensus caller discard again.
+**The test the plan expected to be decisive is not decisive.** Seed depth and
+rebuilt consensus length — RESUME step 4.6's stated criteria — do not separate
+the modes: the consensus differs by under a base pair in the median, and the
+direction is not even consistent (4 vs 6). Whatever merge-always absorbs into
+its copies, the alignment and the consensus caller discard again.
 
-The modes separate only on the secondary criteria, and there gap-aware wins on
-every one at no measurable cost: **more loci** (+456, +492), **fewer bridged
-(multi-fragment) rows** in the seed (0 vs 2, 1 vs 5), and **fewer over-length
-copies** to exclude (571 vs 588, 90 vs 112).
+The modes separate cleanly on the secondary criteria, and gap-aware wins all
+three: it yields **more loci in every single cluster**, and in 10 of 12 it puts
+fewer bridged rows and fewer over-length copies into the seed.
 
-**Decision: `gap_aware` confirmed as default** — not because it builds a better
-consensus, but because it reaches the same consensus from cleaner, more
-numerous, less chimeric evidence. Caveat: n=2 clusters; a wider run is under
-way.
+**Decision: `gap_aware` confirmed as the default** — not because it builds a
+better consensus, but because it reaches the same consensus from cleaner, more
+numerous, less chimeric evidence. **This supersedes the "still to be confirmed
+at seed level" note in F3.**
 
-**This supersedes the "still to be confirmed at seed level" note in F3.**
+**Slide home:** stage 1.1, replacing the provisional wording. The honest framing
+is the interesting one: we expected depth to decide it, and depth had nothing
+to say.
 
-**Slide home:** stage 1.1, replacing the provisional wording.
+---
+
+## F8b. Engine disagreement is a triage signal, not just noise
+
+**Measured:** the same 24 packets built twice from the *same* sampled copies,
+once with MAFFT and once with Dfam's Refiner. Consensus lengths agree to a
+median of **4 bp** (identical in 5 of 24, within 5 bp in 15 of 24). MAFFT is
+the longer of the two in 13 packets, Refiner in 6.
+
+But the tail is not small: the two worst disagreements are **140 bp and 70 bp**,
+and both are the same cluster — the one whose member-weighted classification
+path stops at `repeat:TE:ClassII`, i.e. the tools could not agree what kind of
+Class II element it is. The clusters where two independent aligners disagree
+about how long the element is are the clusters where the tools also disagree
+about what it is.
+
+**Implication:** `|len(consensus_mafft) − len(consensus_refiner)|` is cheap
+(both engines already run) and looks like a useful **queue-priority signal** —
+a packet where the engines disagree is a packet where a curator's time is
+well spent. It costs nothing to record and is worth testing against the first
+batch of curator verdicts.
+
+**Slide home:** stage 2/3, as the argument for running both engines rather than
+picking one.
 
 ---
 
@@ -339,6 +366,13 @@ majority order is `LINE`. That disagreement between what the tool labels say
 and what the rebuilt sequence shows is exactly the F2 caveat, and it is an
 argument for putting the rebuilt consensus, not the inherited label, in front
 of the curator.
+
+**Every seed row checked against the assembly.** Across the 12-cluster batch
+(48 seeds, both engines, both merge modes), **5,005 of 5,005** alignment rows
+reproduce the genome exactly at the coordinates their Smitten identifier
+claims, and `stk lint --genome` reports **0 ERRORs and 0 coordinate warnings**.
+The check is done independently of lint because lint's own coordinate checks
+are advisory (F9).
 
 **Against RepeatModeler's own seed alignment.** GenomeArk also publishes
 rm2's `.stk` seeds for this assembly, so the comparison can be made at the
