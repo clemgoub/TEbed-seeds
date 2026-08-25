@@ -409,3 +409,108 @@ def test_clustermate_paint_order_is_evidence_ranked_not_hash_ranked():
     order = sorted(fams, key=lambda tf: w.get(f"{tf[0]}:{tf[1]}", 0.0))
     assert order[-1] == ("rm2", "B"), "highest-evidence member must paint last"
     assert order[0] == ("edta", "A")
+
+
+# ------------------------------------------------- merge_copies vectorisation
+def _hits(rows):
+    """Minimal member_hits-shaped frame."""
+    return pd.DataFrame(rows, columns=["chrom", "chromStart", "chromEnd", "name",
+                                       "strand", "perc_div", "repeat_start",
+                                       "repeat_end", "repeat_left", "hit_id"])
+
+
+def test_merge_copies_groups_only_same_chrom_and_strand():
+    from lhfseeds import stage1
+    h = _hits([
+        ["c1", 100, 200, "F", "+", 1.0, 1, 100, 0, None],
+        ["c1", 210, 300, "F", "+", 3.0, 1, 100, 0, None],   # merges (gap 10)
+        ["c1", 310, 400, "F", "-", 1.0, 1, 100, 0, None],   # strand break
+        ["c2", 100, 200, "F", "+", 1.0, 1, 100, 0, None],   # chrom break
+    ])
+    out = stage1.merge_copies(h, "merge_always")
+    assert list(out.n_fragments) == [2, 1, 1]
+    assert list(out.start) == [100, 310, 100]
+    assert list(out.end) == [300, 400, 200]
+    assert out.frag_starts.iat[0] == "100;210"
+    assert out.frag_ends.iat[0] == "200;300"
+    assert out["div"].iat[0] == pytest.approx(2.0)  # nanmean of 1.0, 3.0
+    # NB out["div"], not out.div -- `div` collides with DataFrame.div()
+
+
+def test_merge_copies_never_bridges_a_gap_beyond_the_cap():
+    from lhfseeds import stage1
+    far = stage1.MAX_MERGE_GAP + 1000
+    h = _hits([["c1", 0, 100, "F", "+", 1.0, 1, 100, 0, None],
+               ["c1", far, far + 100, "F", "+", 1.0, 1, 100, 0, None]])
+    assert len(stage1.merge_copies(h, "merge_always")) == 2
+
+
+def test_runaway_cap_splits_at_the_widest_gap_recursively():
+    """A copy cannot exceed MAX_COPY_X_CONSENSUS x the consensus (F1). The cut
+    goes at the widest internal gap, and the result is re-checked until every
+    piece fits -- one 3-unit array must become three copies, not two."""
+    from lhfseeds import stage1
+    # three 100 bp units at 0, 150, 300; consensus 100 -> cap 150
+    h = _hits([["c1", 0, 100, "F", "+", 1.0, 1, 100, 0, None],
+               ["c1", 150, 250, "F", "+", 1.0, 1, 100, 0, None],
+               ["c1", 300, 400, "F", "+", 1.0, 1, 100, 0, None]])
+    out = stage1.merge_copies(h, "merge_always", cons_len=100.0)
+    assert len(out) == 3, "recursion must continue until every piece fits"
+    assert list(out.start) == [0, 150, 300]
+    assert (out.end - out.start).max() <= stage1.MAX_COPY_X_CONSENSUS * 100
+
+
+def test_runaway_cap_span_uses_max_end_not_last_end():
+    """Intervals can nest; taking the last row's end would understate the span
+    and let an over-long copy through."""
+    from lhfseeds import stage1
+    h = _hits([["c1", 0, 500, "F", "+", 1.0, 1, 100, 0, None],
+               ["c1", 10, 20, "F", "+", 1.0, 1, 100, 0, None]])
+    out = stage1.merge_copies(h, "merge_always", cons_len=100.0)
+    assert len(out) == 2, "nested pair spans 500 > cap 150, so it must split"
+
+
+def test_merge_copies_gap_aware_consults_the_probe_only_for_real_gaps():
+    from lhfseeds import stage1
+    seen = []
+
+    def probe(ch, a, b):
+        seen.append((ch, a, b))
+        return 0.9                      # heavily foreign -> refuse the merge
+
+    h = _hits([["c1", 0, 100, "F", "+", 1.0, 1, 100, 0, None],
+               ["c1", 150, 250, "F", "+", 1.0, 1, 100, 0, None],
+               ["c1", 250, 350, "F", "+", 1.0, 1, 100, 0, None]])  # gap == 0
+    out = stage1.merge_copies(h, "gap_aware", foreign_cov=probe)
+    assert seen == [("c1", 100, 150)], "a zero-length gap needs no probe"
+    assert list(out.n_fragments) == [1, 2]
+
+
+def test_merge_copies_preserves_integer_consensus_coordinates():
+    """member_hits keeps an int64 column when it has no NA; pandas .min()
+    returned an int, so forcing float turned 178 into 178.0 in the TSV."""
+    from lhfseeds import stage1
+    h = _hits([["c1", 0, 100, "F", "+", 1.0, 178, 231, 0, None]])
+    h["repeat_start"] = h.repeat_start.astype("int64")
+    h["repeat_end"] = h.repeat_end.astype("int64")
+    out = stage1.merge_copies(h, "merge_always")
+    assert str(out.cons_start.iat[0]) == "178"
+    assert str(out.cons_end.iat[0]) == "231"
+
+
+def test_merge_copies_handles_all_nan_consensus_coordinates():
+    from lhfseeds import stage1
+    h = _hits([["c1", 0, 100, "F", "+", np.nan, np.nan, np.nan, np.nan, None],
+               ["c1", 110, 200, "F", "+", np.nan, np.nan, np.nan, np.nan, None]])
+    out = stage1.merge_copies(h, "merge_always")
+    assert np.isnan(out.cons_start.iat[0]) and np.isnan(out.cons_end.iat[0])
+    assert np.isnan(out["div"].iat[0])
+
+
+def test_merge_copies_empty_input_returns_empty_frame_with_columns():
+    from lhfseeds import stage1
+    out = stage1.merge_copies(_hits([]), "merge_always")
+    assert len(out) == 0
+    for c in ("chrom", "start", "end", "strand", "n_fragments",
+              "frag_starts", "frag_ends", "div", "cons_start", "cons_end"):
+        assert c in out.columns

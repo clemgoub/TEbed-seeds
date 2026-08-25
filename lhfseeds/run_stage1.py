@@ -26,6 +26,17 @@ def main(argv=None):
     ap.add_argument("--work-dir", default=None)
     ap.add_argument("--linkage", default="strict")
     ap.add_argument("--top", type=int, default=5)
+    ap.add_argument("--cluster", type=int, action="append", default=None,
+                    help="explicit cluster id(s); repeatable, overrides --top")
+    ap.add_argument("--clusters-file", default=None,
+                    help="TSV with a cluster_id column (tools/select_batch.py)")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="clusters processed in parallel; each holds ~1.5 GB "
+                         "for the genome-wide foreign-coverage paint")
+    ap.add_argument("--shard", default=None, metavar="I/N",
+                    help="internal: process only clusters where index %% N == I")
+    ap.add_argument("--skip-existing", action="store_true",
+                    help="skip clusters whose copies.tsv already exists")
     args = ap.parse_args(argv)
 
     cfg = yaml.safe_load(open(args.config))
@@ -33,8 +44,56 @@ def main(argv=None):
     work = Path(args.work_dir or cfg["work_dir"]).expanduser() / cfg["assembly"]
     cand = pd.read_csv(work / f"candidates_{args.linkage}.tsv", sep="\t")
     cand = cand[cand.candidate].sort_values("pooled_full_len", ascending=False)
-    print(f"[stage1] {int(cand.shape[0])} candidates; processing top {args.top}",
-          file=sys.stderr)
+    if args.clusters_file:
+        want = pd.read_csv(args.clusters_file, sep="\t").cluster_id.tolist()
+    elif args.cluster:
+        want = list(args.cluster)
+    else:
+        want = cand.head(args.top).cluster_id.tolist()
+    sel = cand[cand.cluster_id.isin(want)].reset_index(drop=True)
+    if args.skip_existing:
+        done = {int(p.parent.name.split("_")[1])
+                for p in (work / "seed_packets").glob("cluster_*/copies.tsv")}
+        before = len(sel)
+        sel = sel[~sel.cluster_id.isin(done)].reset_index(drop=True)
+        print(f"[stage1] --skip-existing: {before - len(sel)} already built",
+              file=sys.stderr)
+
+    # Parallelism is by SHARD, not by thread: each cluster paints a
+    # genome-wide coverage array, so workers are independent processes writing
+    # to disjoint cluster directories. No shared state, nothing to pickle.
+    if args.workers > 1 and args.shard is None:
+        import subprocess
+        base = [sys.executable, "-m", "lhfseeds.run_stage1",
+                "--config", args.config, "--linkage", args.linkage]
+        if args.work_dir:
+            base += ["--work-dir", args.work_dir]
+        if args.clusters_file:
+            base += ["--clusters-file", args.clusters_file]
+        elif args.cluster:
+            for c in args.cluster:
+                base += ["--cluster", str(c)]
+        else:
+            base += ["--top", str(args.top)]
+        if args.skip_existing:
+            base += ["--skip-existing"]
+        procs = [subprocess.Popen(base + ["--shard", f"{i}/{args.workers}"])
+                 for i in range(args.workers)]
+        codes = [p.wait() for p in procs]
+        bad = [i for i, c in enumerate(codes) if c != 0]
+        if bad:
+            sys.exit(f"[stage1] shard(s) {bad} failed with {codes}")
+        print(f"[stage1] {args.workers} shards complete", file=sys.stderr)
+        return
+
+    if args.shard:
+        i, n = (int(x) for x in args.shard.split("/"))
+        sel = sel.iloc[i::n].reset_index(drop=True)
+        tag = f"[shard {i}/{n}] "
+    else:
+        tag = ""
+    print(f"{tag}[stage1] {int(cand.shape[0])} candidates; processing "
+          f"{len(sel)} cluster(s)", file=sys.stderr)
 
     sz = pd.read_csv(repo / "data" / f"{cfg['assembly']}.chrom.sizes", sep="\t",
                      names=["chrom", "size"])
@@ -42,7 +101,7 @@ def main(argv=None):
     CLUSTER_TOOLS = ["rm2", "edta", "pantera", "fastltr", "repet"]
 
     comp_rows = []
-    for _, crow in cand.head(args.top).iterrows():
+    for _, crow in sel.iterrows():
         cid = int(crow.cluster_id)
         members = crow.members.split(";")
         cdir = work / "seed_packets" / f"cluster_{cid:05d}"
@@ -227,7 +286,8 @@ def main(argv=None):
         print(f"[stage1] cluster {cid}: {len(copies)} copy rows -> {cdir}", file=sys.stderr)
 
     comp = pd.DataFrame(comp_rows)
-    comp.to_csv(work / "merge_mode_comparison.tsv", sep="\t", index=False)
+    suffix = f".shard{args.shard.replace('/', '_')}" if args.shard else ""
+    comp.to_csv(work / f"merge_mode_comparison{suffix}.tsv", sep="\t", index=False)
     print(comp.to_string(index=False), file=sys.stderr)
 
 

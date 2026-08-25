@@ -352,6 +352,8 @@ def main(argv=None):
     ap.add_argument("--top", type=int, default=2)
     ap.add_argument("--cluster", type=int, action="append", default=None,
                     help="explicit cluster id(s); overrides --top")
+    ap.add_argument("--clusters-file", default=None,
+                    help="TSV with a cluster_id column (tools/select_batch.py)")
     ap.add_argument("--modes", default=None,
                     help="comma list; default from config merge_mode")
     ap.add_argument("--threads", type=int, default=4)
@@ -378,7 +380,10 @@ def main(argv=None):
     if not path_by_cluster:
         print("[stage2] candidates table has no majority_path column -- re-run "
               "stage 0 to emit TP classifications", file=sys.stderr)
-    if args.cluster:
+    if args.clusters_file:
+        cids = [int(c) for c in
+                pd.read_csv(args.clusters_file, sep="\t").cluster_id]
+    elif args.cluster:
         cids = args.cluster
     else:
         sel = cand[cand.candidate].sort_values("pooled_full_len", ascending=False)

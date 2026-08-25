@@ -147,6 +147,88 @@ def member_hits(repo, tool: str, family: str) -> pd.DataFrame:
     return df[df.name == family].reset_index(drop=True)
 
 
+def _cap_blocks(block_starts: list[int], n: int, s: np.ndarray, e: np.ndarray,
+                cap: float) -> list[int]:
+    """Split any contiguous block whose span exceeds `cap` at its widest
+    internal gap, recursively, and return the resulting block starts.
+
+    Same rule as before -- a copy cannot exceed MAX_COPY_X_CONSENSUS x the
+    consensus, and the cut goes at the widest gap (F1) -- but done once over
+    index ranges instead of re-running `groupby` over the whole frame after
+    every single split. The old form needed 24 full passes on one member and
+    spent 70% of merge_copies there.
+    """
+    out: list[int] = []
+    bounds = list(zip(block_starts, block_starts[1:] + [n]))
+    stack = bounds[::-1]                      # pop() yields ascending order
+    while stack:
+        lo, hi = stack.pop()
+        # span uses max(end), not end[hi-1]: intervals may nest
+        if hi - lo < 2 or e[lo:hi].max() - s[lo] <= cap:
+            out.append(lo)
+            continue
+        gaps = s[lo + 1:hi] - e[lo:hi - 1]
+        cut = lo + int(np.argmax(gaps)) + 1   # argmax takes the FIRST maximum
+        stack.append((cut, hi))
+        stack.append((lo, cut))
+    out.sort()                                # positional order == emit order
+    return out
+
+
+def _emit_contiguous(h: pd.DataFrame, block_starts: list[int]) -> pd.DataFrame:
+    """One row per contiguous block, vectorised.
+
+    The frame is sorted by (chrom, chromStart) and every block is a contiguous
+    run, so each per-copy field is a segmented reduction rather than a
+    per-group `sort_values` + dict. Reductions are nan-skipping to match the
+    pandas semantics they replace (`fmin`/`fmax` ignore nan; a block that is
+    entirely nan yields nan, as `.min()` on an all-null Series did).
+    """
+    n = len(h)
+    bs = np.asarray(block_starts, dtype=np.int64)
+    be = np.append(bs[1:], n)
+    s = h.chromStart.to_numpy()
+    e = h.chromEnd.to_numpy()
+    # Keep the column's own dtype: member_hits reads with na_values, so a
+    # column with no NA stays int64 and pandas .min() returned an int. Forcing
+    # float here changed 178 into 178.0 in every affected row -- same value,
+    # different text in the TSV.
+    rstart = h.repeat_start.to_numpy()
+    rend = h.repeat_end.to_numpy()
+    pdiv = h.perc_div.to_numpy(dtype=float)
+
+    ok = ~np.isnan(pdiv)
+    cnt = np.add.reduceat(ok.astype(np.int64), bs)
+    tot = np.add.reduceat(np.where(ok, pdiv, 0.0), bs)
+    with np.errstate(invalid="ignore"):
+        div = np.where(cnt > 0, tot / np.maximum(cnt, 1), np.nan)
+    # a multi-fragment block is rare (0.25% gap-aware); use nanmean there so the
+    # summation order matches what this replaced, bit for bit
+    multi = np.flatnonzero((be - bs) > 1)
+    for i in multi:
+        seg = pdiv[bs[i]:be[i]]
+        div[i] = np.nanmean(seg) if np.isfinite(seg).any() else np.nan
+
+    sa = s.astype(str)
+    ea = e.astype(str)
+    return pd.DataFrame(dict(
+        chrom=h.chrom.to_numpy()[bs],
+        start=s[bs].astype(int),
+        end=np.maximum.reduceat(e, bs).astype(int),
+        strand=h.strand.to_numpy()[bs],
+        n_fragments=(be - bs).astype(int),
+        frag_starts=[";".join(sa[a:b]) for a, b in zip(bs, be)],
+        frag_ends=[";".join(ea[a:b]) for a, b in zip(bs, be)],
+        div=div,
+        # fmin/fmax skip NaN like pandas .min()/.max(); an integer column
+        # cannot hold NaN, so plain minimum/maximum keeps it integral
+        cons_start=(np.fmin if np.issubdtype(rstart.dtype, np.floating)
+                    else np.minimum).reduceat(rstart, bs),
+        cons_end=(np.fmax if np.issubdtype(rend.dtype, np.floating)
+                  else np.maximum).reduceat(rend, bs),
+    ))
+
+
 def merge_copies(hits: pd.DataFrame, mode: str,
                  foreign_cov=None, cons_len: float = float("nan")) -> pd.DataFrame:
     """Group hits into copies.
@@ -160,63 +242,57 @@ def merge_copies(hits: pd.DataFrame, mode: str,
     frag_starts/frag_ends (';'-joined -- extraction uses fragments, never the
     gap), plus consensus-coord span where available.
     """
-    rows = []
+    if not len(hits):
+        return pd.DataFrame(columns=["chrom", "start", "end", "strand",
+                                     "n_fragments", "frag_starts", "frag_ends",
+                                     "div", "cons_start", "cons_end"])
     if mode == "hit_id" and hits.hit_id.notna().any():
-        groups = hits.groupby("hit_id", sort=False)
-    else:
-        # positional grouping per chrom+strand
-        h = hits.sort_values(["chrom", "chromStart"]).reset_index(drop=True)
-        gid = np.zeros(len(h), dtype=int)
-        g = 0
-        for i in range(1, len(h)):
-            same = (h.chrom[i] == h.chrom[i - 1]) and (h.strand[i] == h.strand[i - 1])
-            gap_a, gap_b = h.chromEnd[i - 1], h.chromStart[i]
-            gap = gap_b - gap_a
-            merge = same and 0 <= gap <= MAX_MERGE_GAP
-            if merge and mode == "gap_aware" and gap > 0 and foreign_cov is not None:
-                merge = foreign_cov(h.chrom[i], gap_a, gap_b) <= GAP_FOREIGN_FRAC
-            if not merge:
-                g += 1
-            gid[i] = g
-        h["_g"] = gid
-        # Runaway-chain guard: transitive merging can walk a whole tandem array
-        # of an element into one "copy" (measured: 328x the consensus length,
-        # 32% of merge_always copies over 1.5x). A copy cannot exceed the
-        # consensus by more than MAX_COPY_X_CONSENSUS -- split the group at its
-        # widest internal gap until every piece is within bound.
-        if not np.isnan(cons_len):
-            cap = MAX_COPY_X_CONSENSUS * cons_len
-            next_g = int(h["_g"].max()) + 1
-            changed = True
-            while changed:
-                changed = False
-                for gv, grp in list(h.groupby("_g", sort=False)):
-                    if len(grp) < 2:
-                        continue
-                    if grp.chromEnd.max() - grp.chromStart.min() <= cap:
-                        continue
-                    gi = grp.sort_values("chromStart")
-                    gaps = gi.chromStart.to_numpy()[1:] - gi.chromEnd.to_numpy()[:-1]
-                    cut = int(np.argmax(gaps)) + 1
-                    h.loc[gi.index[cut:], "_g"] = next_g
-                    next_g += 1
-                    changed = True
-        groups = h.groupby("_g", sort=False)
+        rows = []
+        for _, grp in hits.groupby("hit_id", sort=False):
+            grp = grp.sort_values("chromStart", kind="stable")
+            rs = grp.repeat_start.min() if grp.repeat_start.notna().any() else np.nan
+            re_ = grp.repeat_end.max() if grp.repeat_end.notna().any() else np.nan
+            rows.append(dict(
+                chrom=grp.chrom.iat[0], start=int(grp.chromStart.min()),
+                end=int(grp.chromEnd.max()), strand=grp.strand.iat[0],
+                n_fragments=len(grp),
+                frag_starts=";".join(map(str, grp.chromStart)),
+                frag_ends=";".join(map(str, grp.chromEnd)),
+                div=float(np.nanmean(grp.perc_div)) if grp.perc_div.notna().any() else np.nan,
+                cons_start=rs, cons_end=re_,
+            ))
+        return pd.DataFrame(rows)
 
-    for _, grp in groups:
-        grp = grp.sort_values("chromStart")
-        rs = grp.repeat_start.min() if grp.repeat_start.notna().any() else np.nan
-        re_ = grp.repeat_end.max() if grp.repeat_end.notna().any() else np.nan
-        rows.append(dict(
-            chrom=grp.chrom.iat[0], start=int(grp.chromStart.min()),
-            end=int(grp.chromEnd.max()), strand=grp.strand.iat[0],
-            n_fragments=len(grp),
-            frag_starts=";".join(map(str, grp.chromStart)),
-            frag_ends=";".join(map(str, grp.chromEnd)),
-            div=float(np.nanmean(grp.perc_div)) if grp.perc_div.notna().any() else np.nan,
-            cons_start=rs, cons_end=re_,
-        ))
-    return pd.DataFrame(rows)
+    # stable sort: ties on (chrom, chromStart) are rare but real (2 in one REPET
+    # member), and quicksort would order them differently between runs
+    h = hits.sort_values(["chrom", "chromStart"], kind="stable").reset_index(drop=True)
+    n = len(h)
+    ch = h.chrom.to_numpy()
+    st = h.strand.to_numpy()
+    s = h.chromStart.to_numpy()
+    e = h.chromEnd.to_numpy()
+
+    if n > 1:
+        gap = s[1:] - e[:-1]
+        merge = ((ch[1:] == ch[:-1]) & (st[1:] == st[:-1])
+                 & (gap >= 0) & (gap <= MAX_MERGE_GAP))
+        if mode == "gap_aware" and foreign_cov is not None:
+            # only gaps that would otherwise merge need probing
+            cand = np.flatnonzero(merge & (gap > 0))
+            for i in cand:
+                if foreign_cov(ch[i + 1], e[i], s[i + 1]) > GAP_FOREIGN_FRAC:
+                    merge[i] = False
+        block_starts = [0] + (np.flatnonzero(~merge) + 1).tolist()
+    else:
+        block_starts = [0]
+
+    # Runaway-chain guard: transitive merging can walk a whole tandem array of
+    # an element into one "copy" (measured: 328x the consensus length, 32% of
+    # merge_always copies over 1.5x).
+    if not np.isnan(cons_len):
+        block_starts = _cap_blocks(block_starts, n, s, e,
+                                   MAX_COPY_X_CONSENSUS * cons_len)
+    return _emit_contiguous(h, block_starts)
 
 
 def near_full_length(copies: pd.DataFrame, cons_len: float,
