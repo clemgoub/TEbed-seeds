@@ -186,6 +186,15 @@ should gate or only flag.
   `-2`, `-H` but no bare `DNA/Academ`, while every other TIR superfamily has a
   short form. 2 candidate clusters are affected; they emit without TP rather
   than assert a subfamily. Worth raising with Dfam.
+- **The seeds ship a classification that can contradict their own sequence.**
+  Cluster 1103 (`cluster_key 57dc20bdfc`) is a 265 bp element with a 14 bp
+  terminal inverted repeat — a MITE — and its seed carries
+  `#=GF TP LINE/I-Jockey` because that is what the tools' weighted majority
+  says. Lint cannot object; `tp_unknown` only checks vocabulary membership.
+  Two options: flag Class I/Class II contradictions automatically (a TIR at
+  both ends of a short consensus is decisive enough), or make the curator UI
+  present TP as a proposal. See F10.
+
 - **The LTR thread you raised (F11).** fastltr joins only 117 of 1,206 clusters
   but **96.6% of them are LTR**, and its presence raises the candidate-gate
   pass rate from **56% to 89%** — an effect that survives matching on exactly

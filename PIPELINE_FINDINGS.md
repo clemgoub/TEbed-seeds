@@ -389,13 +389,34 @@ independent consensus for the same family (GenomeArk
 The rebuild is not merely *similar* to the library entry, it is co-terminal
 with it: cluster 62's 265 bp maps to library positions 3–267 of 269.
 
-Cluster 62's consensus also carries a **12 bp terminal inverted repeat**
-(self-alignment: positions 1–12 vs 267–256, minus strand, 91.7% identity),
-i.e. it is a TIR element / MITE — although the cluster's member-weighted
-majority order is `LINE`. That disagreement between what the tool labels say
-and what the rebuilt sequence shows is exactly the F2 caveat, and it is an
-argument for putting the rebuilt consensus, not the inherited label, in front
-of the curator.
+### The classification the seed ships can contradict the sequence it ships
+
+Cluster 62's rebuilt consensus carries a **terminal inverted repeat** — 14 bp
+with one mismatch, the first 10 bp (`CTTTAAAGGG`) perfect — and is 265 bp with
+no coding capacity. That is a MITE. The cluster's member-weighted majority
+path is `repeat:TE:ClassI:LINE:Jockey`, so the emitted seed carries
+**`#=GF TP LINE/I-Jockey`**: a Class I retrotransposon label on a Class II
+element.
+
+This is the F2 caveat made concrete and consequential. The tool labels are
+wrong here, the pipeline faithfully propagates them into a Dfam-format field,
+and nothing in the lint chain can object — `tp_unknown` only checks that the
+value exists in Dfam's vocabulary, not that it fits the sequence.
+
+**Consequences worth acting on:**
+1. The curator queue must show the rebuilt consensus and its structural
+   features *next to* the inherited classification, and treat the
+   classification as a proposal, not a datum. The verdict schema already
+   carries a classification field; this is why.
+2. A cheap automated cross-check is available: a TIR at both ends of a short
+   consensus contradicts any Class I `TP`. Class I vs Class II is the one
+   split where structure is decisive enough to flag automatically, and TE-Aid
+   already computes what is needed.
+3. Until then, `#=GF TP` should be read as "what the tools said", and that
+   should be stated in the packet rather than implied.
+
+**Slide home:** the validation slide, as the counterweight — the rebuild works,
+and the label attached to it may still be wrong.
 
 **Every seed row checked against the assembly.** Across the 12-cluster batch
 (48 seeds, both engines, both merge modes), **5,005 of 5,005** alignment rows
