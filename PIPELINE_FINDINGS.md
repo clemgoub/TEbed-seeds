@@ -813,19 +813,33 @@ CCHC zinc knuckle and the RT catalytic `YLDD`; FastLTR annotates
 **So `majority_path = repeat:TE:ClassI:LTR:Gypsy` is correct** and the EDTA
 `MITE/DTA` label is not a counter-argument — see F15.
 
-**One member is mis-clustered.** `pantera:Gypsy_9-fGobNig` is **7,439 bp with
-its own 258 bp terminal repeat** and returns **zero** blastn hits against
-fastltr `CONS_4-7367`, REPET `G3000-Map20`, rm2's INT model, or the 423 bp LTR,
-in either direction. It is a *different* LTR element that shares the cluster by
-coordinate overlap. It inflated the long mode's support from 3 tools to 4
-without contributing evidence.
+**RETRACTED — `pantera:Gypsy_9` is a genuine member.** An earlier draft of this
+entry claimed it was mis-clustered, on the strength of a blastn showing zero
+homology to the other members. That was an artefact of the wrong input file.
 
-**Implication:** cluster membership is established by genomic co-location, and
-co-located is not the same as homologous — two different LTR elements inserting
-into the same regions will cluster. Nothing upstream checks sequence identity
-between members. A cheap guard is available now that consensi are built per
-mode: align member consensi to the rebuilt model and flag a member with no
-homology. Not yet implemented.
+Tested the decisive way instead — take the GENOMIC sequence at a locus pantera
+labelled `Gypsy_9` and ask what it is. At
+`OX637597.1:39,330,768-39,338,134` (7,367 bp):
+
+| against | identity | span |
+|---|---|---|
+| fastltr `CONS_4-7367` | **98.96%** | 7,368 bp, full length |
+| repet `G3000-Map20` | 98.98% | 7,377 bp |
+| rm2 `ltr-1_family-36` (INT) | 99.05% | 6,530 bp |
+| rm2 `ltr-1_family-35` (LTR) | 98.58% | 423 bp |
+| `Gypsy_9` in the pantera library on disk | **no hits** | — |
+
+**The library file does not correspond to the BED.**
+`GCA_951799975.1.fGobNig-pantera-pass.fa` is a different pantera run: 196
+sequences against 14,325 family names in `pantera.bed`, only 135 names in
+common, and where a name occurs in both the sequences are unrelated.
+`Gypsy_9-fGobNig` exists in both and they are different elements.
+
+**Two lessons worth keeping.** First, a per-tool sequence analysis is only as
+good as the provenance of the library — F4's per-tool rates need the library
+that actually produced the BED, and for pantera we do not have it. Second, the
+right test for "is this member really this family" is against the GENOME at the
+member's own annotated loci, not against a library entry that shares its name.
 
 **Slide home:** the validation slide — this is what "rebuilt from copies"
 delivers when checked against structure, plus the honest caveat that clustering
@@ -833,13 +847,20 @@ is coordinate-based.
 
 ---
 
-## F15. EDTA's library header class is a length rule, not a classification
+## F15. EDTA's library header names a different sequence from the one it annotates
 
-**Measured.** EDTA's `MITE/` prefix marks sequences under ~600 bp: its library
-has 1,956 `MITE` entries with median 292 bp and **maximum 599 bp**. Cluster
-1183's EDTA members are 244 bp and 272 bp there — genuinely MITE-sized, so the
-label is defensible *for those sequences*. What is not defensible is that EDTA
-reuses the same family name for ~7.4 kb structural LTR loci in its annotation.
+**Terminology, per CG:** *MITE is not a classification label — it is a
+qualifier for a non-autonomous DNA/TIR element.* So `MITE/DTA` reads as
+"non-autonomous DTA (hAT)", and the class is DNA/TIR-hAT. The entries below are
+therefore correctly *qualified*; the problem is not the qualifier.
+
+**Measured.** EDTA's `MITE/` qualifier tracks length closely: 1,956 such
+entries, median 292 bp, **maximum 599 bp** — consistent with non-autonomous
+elements, which are short by definition. Cluster 1183's EDTA members are 244 bp
+and 272 bp in the library, so calling them non-autonomous TIR elements is
+defensible *for those sequences*. What is not defensible is that EDTA reuses
+the same family name for ~7.4 kb structural LTR loci in its annotation: the
+library entry and the annotated loci are not the same thing.
 
 **The header disagrees with EDTA's own BED annotation on 27.3% of families.**
 Across the 207 built clusters, EDTA member classes contradict the cluster's
