@@ -721,3 +721,136 @@ see it and never will.
 **Slide home:** pairs with F9 as the second half of "what a format checker
 cannot see" — F9 is coordinates that are wrong, F12 is a consensus that is
 absent.
+
+---
+
+## F13. A cluster's members do not always describe one length — the anti-tandem guard deleted the full-length evidence
+
+**Prompted by:** CG's review of the curator demo — *the rebuilt consensus is
+systematically no better than the best member, and always lands near the
+shortest one.*
+
+**Measured (cluster 1183, an LTR/Gypsy family).** Its eight members carry two
+quite different lengths: three at 414–423 bp and five at 6,523–7,400 bp. The
+pipeline reduced that to one modal length, picked **423 bp**, and the F4
+anti-tandem cap (1.5 × modal) then excluded **all 83 loci above 635 bp** — 52
+REPET, 12 rm2, 9 fastltr, 8 edta, i.e. every full-length copy. Sampling saw
+only the short side (max sampled span 618 bp) and the seed came out at
+**453 bp for a 7.4 kb element**.
+
+Two compounding causes, both worth stating:
+
+1. **The mode was taken over copy ROWS, not over deduplicated loci.** A member
+   with many redundant annotations decides the cluster's length. Here 423 bp
+   wins on 326 rows against REPET's 189 at 7,400 — and only because
+   `edta:TE_00000385` contributes no length of its own. Over deduplicated loci
+   the mode is 7,400.
+2. **The F4 guard is right in general and wrong here.** It was tuned on a
+   265 bp element whose REPET entry was a chimera (F4); on a bimodal cluster
+   the same rule deletes the real element instead of the artifact.
+
+**The fix, and why it does not reopen F4.** Member lengths are grouped into
+**modes** (split where consecutive lengths differ by >2×), and a mode counts
+as real only when **≥2 distinct tools measured it**. That is the same
+cross-tool principle the deconvolution guard uses, and it separates the two
+cases cleanly:
+
+| cluster | short mode | long mode | outcome |
+|---|---|---|---|
+| 1183 | 418 bp, 2 tools | 7,363 bp, **4 tools** | both real → two models |
+| 62 (F4) | 264 bp, 2 tools | 764 bp, **REPET alone** | long mode rejected → F4 holds |
+
+Each locus is then capped against **the mode it belongs to**, nearest in log
+space — so the boundary sits at the geometric mean (~1,765 bp for 1183). A
+tandem dimer of the solo LTR at 850 bp is still capped; a truncated full
+element at 1.8 kb is judged against 7,363 and kept.
+
+**Only MEASURED lengths vote.** A member whose `cons_len_source` is
+`clustermate` or `deconvolved` is repeating a cluster-mate's opinion. Counting
+its tool inflates the mode's apparent support — and since `#=GF CC` names the
+supporting tools, it would ship a false provenance claim. On 1183, EDTA
+contributes 423 and 7,400 bp while **EDTA's own library entries are 244 and
+272 bp** and `edta.bed` carries `NA` consensus coordinates: EDTA never measured
+either length.
+
+**Result on 1183:**
+
+| model | MAFFT | Refiner | near-full-length | lint |
+|---|---|---|---|---|
+| `model0_418bp` (solo LTR) | 455 bp | 426 bp | 44% | clean |
+| `model1_7363bp` (full element) | **7,389 bp** | **7,372 bp** | **97%** | clean |
+
+**Scope:** 12 of 207 clusters have two real length modes, **9 of them LTR**.
+Only 1183, 1201 and 1162 had actually landed on the short mode; the other nine
+happened to pick the long one already, so the damage was invisible in aggregate
+and only showed up because CG looked at the flagship packets by eye.
+
+**Slide home:** stage 2, next to F4 — the same guard, the case where it helps
+and the case where it hurts, and the cross-tool test that tells them apart.
+
+---
+
+## F14. Cluster 1183 is a Ty3/Gypsy element, decomposed from sequence — and one member does not belong
+
+Worth recording because it is the first time the pipeline's output has been
+checked against element *structure* rather than against another tool's
+consensus, and because it settles a classification contradiction.
+
+**The decomposition is exact.** rm2's 423 bp `ltr-1_family-35` (its own
+`Type=LTR` model) matches **both ends and only the ends** of the long consensi.
+REPET's 7,400 bp entry carries LTRs at 12–437 and 6,965–7,390 — **426 bp and
+100% identical to each other** — both beginning `TG` and ending `CA`. rm2's
+6,523 bp `Type=INT` model fills 438–6,964 at 99.77%. The arithmetic closes:
+**6,523 + 2 × 423 = 7,369**.
+
+Supporting evidence: **57 of 60** full-length genomic loci carry a 4 bp target
+site duplication (and none carry 5 or 6), independently reproducing FastLTR's
+`tsdl4_tsdc0.94` header; `getorf` finds exactly one ORF, 1,898 aa with no
+internal stops, lying entirely inside the internal region and containing a GAG
+CCHC zinc knuckle and the RT catalytic `YLDD`; FastLTR annotates
+`domains=PROT|Ty3_gypsy RT|Ty3_gypsy RH|Ty3_gypsy INT|Ty3_gypsy`.
+
+**So `majority_path = repeat:TE:ClassI:LTR:Gypsy` is correct** and the EDTA
+`MITE/DTA` label is not a counter-argument — see F15.
+
+**One member is mis-clustered.** `pantera:Gypsy_9-fGobNig` is **7,439 bp with
+its own 258 bp terminal repeat** and returns **zero** blastn hits against
+fastltr `CONS_4-7367`, REPET `G3000-Map20`, rm2's INT model, or the 423 bp LTR,
+in either direction. It is a *different* LTR element that shares the cluster by
+coordinate overlap. It inflated the long mode's support from 3 tools to 4
+without contributing evidence.
+
+**Implication:** cluster membership is established by genomic co-location, and
+co-located is not the same as homologous — two different LTR elements inserting
+into the same regions will cluster. Nothing upstream checks sequence identity
+between members. A cheap guard is available now that consensi are built per
+mode: align member consensi to the rebuilt model and flag a member with no
+homology. Not yet implemented.
+
+**Slide home:** the validation slide — this is what "rebuilt from copies"
+delivers when checked against structure, plus the honest caveat that clustering
+is coordinate-based.
+
+---
+
+## F15. EDTA's library header class is a length rule, not a classification
+
+**Measured.** EDTA's `MITE/` prefix marks sequences under ~600 bp: its library
+has 1,956 `MITE` entries with median 292 bp and **maximum 599 bp**. Cluster
+1183's EDTA members are 244 bp and 272 bp there — genuinely MITE-sized, so the
+label is defensible *for those sequences*. What is not defensible is that EDTA
+reuses the same family name for ~7.4 kb structural LTR loci in its annotation.
+
+**The header disagrees with EDTA's own BED annotation on 27.3% of families.**
+Across the 207 built clusters, EDTA member classes contradict the cluster's
+majority order for **46 of 203 members (22.7%)**, in 39 of 164 clusters;
+restricting to clusters with a resolved (non-`TE`) order, **22 of 179 (12.3%)**,
+dominated by LTR→TIR.
+
+**Consequence:** the pipeline already takes class from the BED rather than the
+library header, so nothing is broken — but this is the measurement that says
+*never* switch to the header, and the residual ~12.3% genuine BED-class
+conflict is a triage list rather than a bug.
+
+**Slide home:** a notes item beside F5 (which tools can participate) — this is
+about which *fields* of a participating tool can be trusted.
