@@ -258,6 +258,11 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
             fin = stage2.finalize_alignment(arecs, rc, min_occupancy=min_occ,
                                             min_row_bp=min_row)
             m, is_match = fin["matrix"], fin["is_match"]
+            # A seed with no match column has no consensus. It is structurally
+            # valid Stockholm and lints CLEAN -- 184 such seeds shipped from the
+            # first 200-cluster batch before this check existed -- so it must be
+            # caught here or not at all.
+            degenerate = int(is_match.sum()) == 0
             depth = (m[:, is_match] != ord("-")).sum(axis=0)
             stage2.write_fasta(
                 [(f"cluster_{cluster_id:05d}_{mode}_{eng}_consensus",
@@ -274,7 +279,8 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
                 min_depth=int(depth.min()) if len(depth) else 0,
                 max_depth=int(depth.max()) if len(depth) else 0,
                 frac_cols_depth_ge3=float((depth >= 3).mean()) if len(depth) else 0.0,
-                n_rows_dropped=len(fin["dropped"]), lint=lr, info=info, **extra)
+                n_rows_dropped=len(fin["dropped"]), degenerate=degenerate,
+                lint=lr, info=info, **extra)
             eng_results[eng] = st
             pd.DataFrame(fin["dropped"]).to_csv(
                 outdir / f"dropped_rows.{eng}.tsv", sep="\t", index=False)
@@ -472,6 +478,11 @@ def main(argv=None):
                                 code="engine_failed", n=1,
                                 detail=est["error"][:200]))
                 continue
+            if est.get("degenerate"):
+                tri.append(dict(cluster_id=p["cluster_id"], mode=p["mode"],
+                                engine=eng, tier="build", severity="ERROR",
+                                code="degenerate_alignment", n=1,
+                                detail="no match column; consensus is empty"))
             for tier in ("tier1", "genome"):
                 res = (est.get("lint") or {}).get(tier) or {}
                 for code, n in (res.get("codes") or {}).items():

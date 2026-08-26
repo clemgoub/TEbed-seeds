@@ -141,8 +141,13 @@ def load_packets(work: Path) -> pd.DataFrame:
 
 # ------------------------------------------------------------------ A2
 def analyse_engine_disagreement(d: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    # A packet whose alignment has NO match column produces a zero-length
+    # consensus. Counting that as "the engines disagree by 100%" is nonsense --
+    # it is an engine FAILURE and belongs in a failure rate, not in a
+    # disagreement distribution. Left in, it moved the median disagreement from
+    # 15 bp to 82 bp and made the relative measure undefined.
     ok = d.dropna(subset=["mafft_cons", "refiner_cons"]).copy()
-    ok = ok[ok.path_depth > 0]
+    ok = ok[(ok.path_depth > 0) & (ok.mafft_cons > 0) & (ok.refiner_cons > 0)]
     ok["abs_diff"] = (ok.mafft_cons - ok.refiner_cons).abs()
     ok["rel_diff"] = ok.abs_diff / ((ok.mafft_cons + ok.refiner_cons) / 2)
     ok["shallow"] = ok.path_depth <= 4
@@ -219,6 +224,24 @@ def main(argv=None):
                   f"coord warnings {int(cw.fillna(0).sum()):4d} | "
                   f"rows verified {int(v.fillna(0).sum()):,}/"
                   f"{int(n.fillna(0).sum()):,}")
+
+    # degenerate packets first: they are a result in their own right
+    print("\n=== engines that produced NO consensus (zero match columns) ===")
+    for e in ("mafft", "refiner"):
+        c = d.get(f"{e}_cons")
+        if c is None:
+            continue
+        z = int((c.fillna(0) == 0).sum())
+        print(f"  {e:8s} {z:4d}/{len(d)} packets ({z/len(d):.1%})")
+    deg = d[(d.mafft_cons.fillna(0) == 0) | (d.refiner_cons.fillna(0) == 0)]
+    if len(deg):
+        deg.to_csv(out / "degenerate_packets.tsv", sep="\t", index=False)
+        print(f"  affected clusters: {deg.cluster_id.nunique()} "
+              f"-> degenerate_packets.tsv")
+        b = d.assign(bad=(d.mafft_cons.fillna(0) == 0)
+                     | (d.refiner_cons.fillna(0) == 0))
+        print("  degenerate rate by tool support (n_tools of the cluster):")
+        print(b.groupby("path_depth").bad.agg(["size", "mean"]).round(3).to_string())
 
     ok, res = analyse_engine_disagreement(d)
     ok.to_csv(out / "engine_disagreement.tsv", sep="\t", index=False)

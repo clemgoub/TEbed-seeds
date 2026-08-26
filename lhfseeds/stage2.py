@@ -37,6 +37,7 @@ from .fasta import IndexedFasta, revcomp
 
 LOCUS_MIN_RECIPROCAL = 0.5   # same rule stage0 uses for graph edges
 MIN_FRAG_BP = 30             # below this a fragment carries no alignable signal
+MIN_MATCH_DEPTH = 3          # a match column needs this many rows reaching it
 
 
 # --------------------------------------------------------------- 1. loci
@@ -330,6 +331,37 @@ def msa_matrix(recs: list[tuple[str, str]]) -> tuple[list[str], np.ndarray]:
     return ids, m
 
 
+def span_occupancy(m: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Per-column (occupancy, spanning-row count), normalised by ROWS THAT
+    REACH THE COLUMN rather than by every row in the alignment.
+
+    A copy that stops at position 900 says nothing about position 3000, so
+    counting it in position 3000's denominator penalises a column for evidence
+    that was never available. Measured cost of getting this wrong: on the
+    200-cluster batch, 174 of 414 Refiner packets and 10 MAFFT packets produced
+    a consensus of length ZERO, because no column of a 4.2 kb element reached
+    50% of ALL rows. Refiner itself had called a consensus in 174/174 of them
+    (median 4,217 bp) -- the alignment was fine, the occupancy rule was not.
+
+    A row's span runs from its first to its last non-gap column; interior gaps
+    are real deletions and still count against it.
+    """
+    gap = ord("-")
+    nz = m != gap
+    n, w = m.shape
+    if not n or not w:
+        return np.zeros(w), np.zeros(w, dtype=np.int64)
+    has = nz.any(axis=1)
+    first = np.argmax(nz, axis=1)
+    last = w - 1 - np.argmax(nz[:, ::-1], axis=1)
+    delta = np.zeros(w + 1, dtype=np.int64)
+    np.add.at(delta, first[has], 1)
+    np.add.at(delta, last[has] + 1, -1)
+    cover = np.cumsum(delta)[:w]
+    occ = nz.sum(axis=0) / np.maximum(cover, 1)
+    return occ, cover
+
+
 def consensus(m: np.ndarray, min_occupancy: float = 0.5,
               tie: str = "iupac") -> tuple[str, np.ndarray, np.ndarray]:
     """Majority consensus with an occupancy rule.
@@ -339,8 +371,14 @@ def consensus(m: np.ndarray, min_occupancy: float = 0.5,
     part of the consensus, and in Stockholm terms it is a '.' in the RF line.
     """
     gap = ord("-")
-    occ = (m != gap).mean(axis=0)
-    is_match = occ >= min_occupancy
+    occ, cover = span_occupancy(m)
+    # BOTH tests are needed, and they catch opposite failures. Span-normalised
+    # occupancy alone would keep a ragged shoulder that only two rows reach --
+    # 2/2 reads as fully occupied. An absolute depth floor alone was what threw
+    # away 174 Refiner packets. A match column must be agreed by most rows that
+    # reach it AND be reached by enough rows to mean anything.
+    depth_floor = min(MIN_MATCH_DEPTH, m.shape[0])
+    is_match = (occ >= min_occupancy) & (cover >= depth_floor)
     letters = np.array([ord(c) for c in "ACGT"], dtype=np.uint8)
     counts = np.stack([(m == L).sum(axis=0) for L in letters])   # 4 x width
     best = counts.argmax(axis=0)
@@ -375,9 +413,11 @@ def trim_alignment(m: np.ndarray, min_occupancy: float = 0.5,
 
     Trims the ragged 5'/3' shoulders that a handful of over-long rows create,
     without touching interior low-occupancy columns (those are real deletions).
+    Occupancy is span-normalised (see span_occupancy).
     """
-    occ = (m != ord("-")).mean(axis=0)
-    ok = np.flatnonzero(occ >= min_occupancy)
+    occ, cover = span_occupancy(m)
+    depth_floor = min(MIN_MATCH_DEPTH, m.shape[0])
+    ok = np.flatnonzero((occ >= min_occupancy) & (cover >= depth_floor))
     if not len(ok):
         return 0, m.shape[1]
     return int(ok[0]), int(ok[-1]) + 1
