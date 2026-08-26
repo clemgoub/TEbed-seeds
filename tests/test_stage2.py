@@ -575,3 +575,28 @@ def test_assign_mode_uses_the_geometric_midpoint():
 
 def test_assign_mode_with_no_credible_modes_is_safe():
     assert list(stage2.assign_mode(np.array([100, 200]), [])) == [0, 0]
+
+
+def test_only_measured_lengths_should_vote_on_a_mode():
+    """A member whose cons_len was inherited from a cluster-mate is repeating
+    an opinion, not supplying evidence. Counting its tool inflates the mode's
+    cross-tool support -- and the #=GF CC line naming those tools would then
+    ship a provenance claim that is not true. Measured on cluster 1183: edta
+    contributes 423 and 7400 bp while EDTA's own library entries are 244 and
+    272 bp, and its BED has NA consensus coordinates."""
+    loci = pd.DataFrame([
+        dict(member="rm2:a", cons_len=423.0, cons_len_source="bed16"),
+        dict(member="pantera:b", cons_len=414.0, cons_len_source="bed16"),
+        dict(member="edta:c", cons_len=423.0, cons_len_source="clustermate"),
+        dict(member="repet:d", cons_len=7400.0, cons_len_source="bed16"),
+        dict(member="fastltr:e", cons_len=7367.0, cons_len_source="bed16"),
+        dict(member="edta:f", cons_len=7400.0, cons_len_source="clustermate"),
+    ])
+    meas = loci[loci.cons_len_source == "bed16"]
+    ms = stage2.length_modes(meas.groupby("member").cons_len.median().to_dict())
+    assert [m["n_tools"] for m in ms] == [2, 2]
+    assert all("edta" not in m["tools"] for m in ms), \
+        "an inherited length must not make its tool count as support"
+    # counting everything would have claimed three tools for each mode
+    ms_all = stage2.length_modes(loci.groupby("member").cons_len.median().to_dict())
+    assert [m["n_tools"] for m in ms_all] == [3, 3]

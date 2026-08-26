@@ -181,8 +181,18 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
     # cluster 1183 the pool-row mode is 423 bp and the locus mode is 7400 bp,
     # and the 423 answer deleted every full-length locus.
     loci = stage2.cluster_loci(pool)
-    member_lens = (loci.groupby("member").cons_len.median().dropna().to_dict()
-                   if "cons_len" in loci.columns else {})
+    # Only MEASURED lengths vote on the modes. A member whose cons_len_source is
+    # `clustermate` or `deconvolved` is repeating a cluster-mate's opinion, not
+    # supplying independent evidence, so counting its tool inflates the mode's
+    # apparent cross-tool support -- and a #=GF CC line claiming N tools support
+    # a length would then ship a provenance claim that is not true. Measured on
+    # cluster 1183: edta contributes 423 and 7400 bp, but EDTA's own library
+    # entries are 244 and 272 bp and its BED carries NA consensus coordinates.
+    meas = loci[loci.cons_len_source == "bed16"] if "cons_len_source" in loci else loci
+    member_lens = (meas.groupby("member").cons_len.median().dropna().to_dict()
+                   if "cons_len" in meas.columns else {})
+    if not member_lens and "cons_len" in loci.columns:   # nothing measured
+        member_lens = loci.groupby("member").cons_len.median().dropna().to_dict()
     modes = stage2.length_modes(member_lens, split_ratio, min_mode_tools)
     credible = [m for m in modes if m["credible"]]
     if not credible and modes:
