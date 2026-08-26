@@ -677,3 +677,88 @@ def assign_mode(spans: np.ndarray, centres: list[float]) -> np.ndarray:
     c = np.log(np.asarray(centres, dtype=float))
     s = np.log(np.maximum(np.asarray(spans, dtype=float), 1.0))
     return np.abs(s[:, None] - c[None, :]).argmin(axis=1)
+
+
+# --------------------------------------- 9. LTR/INT split (optional, CG 2026-08-26)
+def detect_ltr_structure(short_cons: str, long_cons: str, workdir: Path,
+                         min_ident: float = 80.0, min_cov: float = 0.7,
+                         end_slop_frac: float = 0.10) -> dict | None:
+    """Is `long_cons` an LTR-INT-LTR element whose LTR is `short_cons`?
+
+    The test is direct: the solo-LTR consensus must align to BOTH ends of the
+    full-element consensus, same strand, each hit covering most of the LTR.
+    Measured on cluster 1183 this is unambiguous -- rm2's 423 bp LTR model hits
+    positions 1-423 and 6,952-7,375 of the 7,375 bp element and nowhere else,
+    and the element's own two LTRs are 100% identical to each other.
+
+    Returns the internal interval in `long_cons` coordinates, or None.
+    """
+    workdir.mkdir(parents=True, exist_ok=True)
+    q, s = workdir / "_ltr.fa", workdir / "_full.fa"
+    write_fasta([("ltr", short_cons)], q)
+    write_fasta([("full", long_cons)], s)
+    p = subprocess.run(
+        ["blastn", "-query", str(q), "-subject", str(s), "-dust", "no",
+         "-outfmt", "6 length pident sstart send sstrand"],
+        capture_output=True, text=True)
+    if p.returncode != 0 or not p.stdout.strip():
+        return None
+    L, n = len(short_cons), len(long_cons)
+    slop = max(int(end_slop_frac * n), 50)
+    hits = []
+    for line in p.stdout.strip().split("\n"):
+        ln, ident, ss, se, strand = line.split("\t")
+        ln, ident, ss, se = int(ln), float(ident), int(ss), int(se)
+        if ident < min_ident or ln < min_cov * L:
+            continue
+        lo, hi = (ss, se) if ss <= se else (se, ss)
+        hits.append((lo, hi, strand))
+    if len(hits) < 2:
+        return None
+    hits.sort()
+    first, last = hits[0], hits[-1]
+    if first[0] > slop or last[1] < n - slop:
+        return None                       # not anchored at both ends
+    if first[2] != last[2]:
+        return None                       # LTRs are direct repeats, not inverted
+    if last[0] <= first[1]:
+        return None                       # the two hits overlap; one LTR only
+    return dict(ltr_len=L, five_prime=(first[0] - 1, first[1]),
+                three_prime=(last[0] - 1, last[1]),
+                internal=(first[1], last[0] - 1),   # 0-based half-open
+                n_hits=len(hits), strand=first[2])
+
+
+def consensus_cols(is_match: np.ndarray) -> np.ndarray:
+    """Alignment column index of each consensus position."""
+    return np.flatnonzero(is_match)
+
+
+def trim_finalized(fin: dict, lo: int, hi: int, min_occupancy: float = 0.5,
+                   min_row_bp: int = 1) -> dict:
+    """Trim an already-finalised alignment to columns [lo, hi) and RETAG.
+
+    Same invariant as finalize_alignment: a trimmed row no longer contains the
+    whole interval its identifier claims, so coordinates walk in by the number
+    of non-gap bases actually removed -- from the 3' end first on a minus row.
+    """
+    gap = ord("-")
+    m = fin["matrix"]
+    rows, coords, dropped = [], [], []
+    for i, (chrom, s, e, strand) in enumerate(fin["coords"]):
+        nl = int((m[i, :lo] != gap).sum())
+        nr = int((m[i, hi:] != gap).sum())
+        nin = int((m[i, lo:hi] != gap).sum())
+        if nin < min_row_bp:
+            dropped.append(dict(seq_id=f"{chrom}:{s}-{e}", aligned_bp=nin,
+                                reason="empty_after_ltr_trim"))
+            continue
+        coords.append((chrom, s + nl, e - nr, "+") if strand == "+"
+                      else (chrom, s + nr, e - nl, "-"))
+        rows.append(m[i, lo:hi])
+    mat = np.stack(rows) if rows else np.zeros((0, max(hi - lo, 0)), np.uint8)
+    if len(mat):
+        mat = mat[:, (mat != gap).any(axis=0)]
+    cons, occ, is_match = consensus(mat, min_occupancy)
+    return dict(matrix=mat, coords=coords, consensus=cons, is_match=is_match,
+                occupancy=occ, dropped=dropped)

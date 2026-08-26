@@ -749,6 +749,27 @@ Two compounding causes, both worth stating:
    265 bp element whose REPET entry was a chimera (F4); on a bimodal cluster
    the same rule deletes the real element instead of the artifact.
 
+**Where the two lengths come from — not a disagreement between tools.**
+RepeatModeler does **not** split LTR elements by default: its 1,993 `rnd-*`
+families (RECON/RepeatScout) carry no `Type=` annotation and are whole
+consensi. The split comes from its optional **`-LTRStruct`** module, whose 557
+`ltr-*` families are every one of them typed — 279 `Type=LTR` and 278
+`Type=INT`. Cluster 1183's 423 bp and 6,523 bp members are `ltr-1_family-35`
+and `ltr-1_family-36` from that module; fastltr, REPET, pantera and EDTA all
+report the whole element. So the bimodality is a structural module having been
+run, not two tools disagreeing about the element.
+
+**Why the split is worth having anyway (CG).** Dfam prefers LTR families stored
+as two pieces for two reasons, and the second is the substantive one:
+1. RepeatMasker annotates LTR elements better against separate LTR and internal
+   models than against one full-element model.
+2. **LTRs recombine frequently between LTR subfamilies.** An LTR is therefore
+   not permanently bound to one internal region, and a single full-element
+   model asserts a pairing that the biology does not guarantee. Two models let
+   the LTR and the internal region carry their own, partly independent,
+   histories — and solo LTRs, which are what recombination leaves behind, get a
+   model of their own rather than being read as truncated elements.
+
 **The fix, and why it does not reopen F4.** Member lengths are grouped into
 **modes** (split where consecutive lengths differ by >2×), and a mode counts
 as real only when **≥2 distinct tools measured it**. That is the same

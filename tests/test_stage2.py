@@ -600,3 +600,20 @@ def test_only_measured_lengths_should_vote_on_a_mode():
     # counting everything would have claimed three tools for each mode
     ms_all = stage2.length_modes(loci.groupby("member").cons_len.median().to_dict())
     assert [m["n_tools"] for m in ms_all] == [3, 3]
+
+
+def test_seed_ids_stay_within_the_45_character_limit():
+    """`stk lint` caps #=GF ID at 45 characters (id_too_long, ERROR). The
+    longest form the pipeline can build is a multi-model merge_always cluster
+    on the refiner engine; carrying the model's length in the ID pushed it to
+    46-47 and shipped 12 ERRORs in a live batch before this was caught."""
+    longest = 0
+    for mode in ("gap_aware", "merge_always"):
+        for tag in ("LTR", "int", "m0", "m1"):
+            for eng in ("mafft", "refiner"):
+                i = f"TEbedSeeds_c01183_{mode}_{tag}_{eng}"
+                longest = max(longest, len(i))
+                assert len(i) <= 45, f"{i} is {len(i)} chars"
+    assert longest >= 40, "sanity: the worst case should be close to the limit"
+    # the old form must still be recognised as over-limit, so this test bites
+    assert len("TEbedSeeds_c01183_merge_always_m1x7363_refiner") == 46

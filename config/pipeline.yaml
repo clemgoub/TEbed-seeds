@@ -44,6 +44,26 @@ seed:
   # reopening F4. Each locus is capped against the mode it belongs to.
   mode_split_ratio: 2.0
   min_tools_per_mode: 2
+  # OPTIONAL LTR/INT split. When a cluster has a solo-LTR mode and a
+  # full-element mode, and the solo-LTR consensus aligns to BOTH ends of the
+  # full-element consensus, derive an additional internal-region model by
+  # trimming between the terminal repeats and emit the Dfam-style _int/_LTR
+  # pair alongside the full element.
+  # OFF by default: the field disagrees about whether an LTR family should be
+  # deposited as one full-element model or as a pair.
+  # Dfam prefers the pair, for two reasons (CG):
+  #   1. RepeatMasker annotates LTR elements better against separate LTR and
+  #      internal models than against one full-element model.
+  #   2. LTRs recombine frequently BETWEEN LTR subfamilies, so an LTR is not
+  #      permanently bound to one internal region. A single full-element model
+  #      asserts a pairing the biology does not guarantee; two models let the
+  #      LTR and the internal region carry their own histories, and give solo
+  #      LTRs -- what recombination leaves behind -- a model of their own
+  #      instead of reading them as truncated elements.
+  # Note this is a CURATION preference, not a tool convention: RepeatModeler
+  # does not split by default (its 1,993 rnd-* families are whole consensi);
+  # only its optional -LTRStruct module emits the typed ltr-* pairs.
+  ltr_int_split: false
 
 consensus_engine: refiner   # primary engine reported in packets/summary (CG's preference,
                             # 2026-08-26). Both still run; F8b found they agree at seed level,

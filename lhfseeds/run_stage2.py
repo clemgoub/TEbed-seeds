@@ -60,8 +60,14 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
     # A two-model cluster emits two seeds; without the model in the ID they
     # collide and `stk lint` raises duplicate_id when the batch is concatenated.
     mtag = ""
-    if model and model.get("n_models", 1) > 1:
-        mtag = f"_m{model['index']}x{int(round(model['centre']))}"
+    if model and model.get("suffix"):
+        mtag = "_" + model["suffix"]          # Dfam convention: _LTR / _int
+    elif model and model.get("n_models", 1) > 1:
+        # index only, not the centre: `stk lint` caps ID at 45 characters
+        # (id_too_long, ERROR) and TEbedSeeds_cNNNNN_merge_always_m1x7363_refiner
+        # is 46. The model's length lives in #=GF SE, #=GF CC and the directory
+        # name, so the ID does not need to carry it.
+        mtag = f"_m{model['index']}"
     meta = {
         "ID": f"TEbedSeeds_c{cluster_id:05d}_{mode}{mtag}_{engine}",
         "DE": (f"Consensus rebuilt from {len(ids)} genomic copies of "
@@ -92,6 +98,8 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
         meta["TP"] = tp
     if kimura is not None and kimura == kimura:      # not NaN
         meta["KD"] = f"{kimura:.2f}"
+    if len(meta["ID"]) > 45:            # belt and braces; lint would ERROR
+        meta["ID"] = meta["ID"][:45]
     stk_path = outdir / f"seed.{engine}.stk"
     stockholm.write_stockholm(stk_path, [stockholm.format_record(ids, rows, meta)])
 
@@ -241,6 +249,7 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
                             over_members, modes, only, t0)
 
     built = []
+    fins_by_model: dict = {}
     for m in models:
         sub = eligible[eligible.mode_index == m["index"]]
         sdir = outdir / f"model{m['index']}_{int(round(m['centre']))}bp"
@@ -248,13 +257,77 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
             built.append(dict(model_index=m["index"], centre=m["centre"],
                               error=f"only {len(sub)} loci in this mode"))
             continue
+        fins: dict = {}
         built.append(_build_model(sub, loci, pool, mode, fa, cfg, sdir,
                                   cluster_id, threads, tp_info, cluster_key,
                                   seedcfg, x_modal, modal_cons, n_over,
-                                  over_members, modes, m, t0))
+                                  over_members, modes, m, t0, out_fins=fins))
+        fins_by_model[m["index"]] = fins
+    # ---- optional LTR/INT split ------------------------------------------
+    # OFF by default: the field disagrees about whether an LTR family should be
+    # deposited as one full-element model or as an _int/_LTR pair. The pair is
+    # what RepeatMasker consumes today, and it is what Dfam's automated
+    # submissions use (555 of 593 `_int` names have an exact `_LTR` partner,
+    # across 129 species prefixes), so it is offered rather than imposed.
+    ltr_split = bool(seedcfg.get("ltr_int_split", False))
+    ltr_info = None
+    if ltr_split and len(models) >= 2 and len(fins_by_model) >= 2:
+        short_i, long_i = models[0]["index"], models[-1]["index"]
+        sfin = fins_by_model.get(short_i, {})
+        lfin = fins_by_model.get(long_i, {})
+        eng = cfg.get("consensus_engine", "mafft")
+        eng = eng if eng in sfin and eng in lfin else next(
+            (e for e in sfin if e in lfin), None)
+        if eng:
+            det = stage2.detect_ltr_structure(
+                sfin[eng]["consensus"], lfin[eng]["consensus"],
+                outdir / "_ltrdet")
+            if det:
+                ltr_info = det
+                models[0]["suffix"] = "LTR"
+                # model0's seed was already written under the generic length
+                # tag, because detection needs BOTH consensi and so can only
+                # run once both models exist. Re-emit it now that it is known
+                # to be a solo LTR, so the pair carries the _LTR / _int names
+                # Dfam uses rather than one of each.
+                sdir0 = outdir / (f"model{models[0]['index']}_"
+                                  f"{int(round(models[0]['centre']))}bp")
+                for e, f0 in sfin.items():
+                    emit_seed(sdir0, cluster_id, mode, f0, cfg, engine=e,
+                              tp_info=tp_info, fa=fa, cluster_key=cluster_key,
+                              model=models[0])
+                i0, i1 = det["internal"]
+                for e in (x for x in lfin if x in sfin):
+                    cols = stage2.consensus_cols(lfin[e]["is_match"])
+                    if i1 > len(cols):
+                        continue
+                    lo, hi = int(cols[i0]), int(cols[i1 - 1]) + 1
+                    ifin = stage2.trim_finalized(
+                        lfin[e], lo, hi,
+                        min_occupancy=float(seedcfg.get("min_match_occupancy", 0.5)))
+                    idir = outdir / "model_int"
+                    idir.mkdir(parents=True, exist_ok=True)
+                    imodel = dict(index=99, centre=len(ifin["consensus"]),
+                                  n_tools=models[-1]["n_tools"],
+                                  tools=models[-1]["tools"],
+                                  members=models[-1]["members"],
+                                  n_models=len(models) + 1, suffix="int")
+                    stage2.write_fasta(
+                        [(f"cluster_{cluster_id:05d}_{mode}_{e}_int",
+                          ifin["consensus"])], idir / f"consensus.{e}.fa")
+                    emit_seed(idir, cluster_id, mode, ifin, cfg, engine=e,
+                              tp_info=tp_info, fa=fa, cluster_key=cluster_key,
+                              model=imodel)
+                    built.append(dict(model_index=99, model_centre=imodel["centre"],
+                                      model_role="internal",
+                                      rebuilt_consensus_len=len(ifin["consensus"]),
+                                      n_rows=int(ifin["matrix"].shape[0]),
+                                      derived_from=long_i, engine=e))
+
     packet = dict(
         cluster_id=cluster_id, cluster_key=cluster_key, mode=mode,
         multi_model=True, n_models=len(models),
+        ltr_int_split=ltr_split, ltr_structure=ltr_info,
         cluster_modal_consensus_len=modal_cons,
         length_modes=[{k: v for k, v in mm.items() if k != "members"}
                       for mm in modes],
@@ -277,7 +350,8 @@ def _build_model(eligible: pd.DataFrame, loci: pd.DataFrame,
                  threads: int, tp_info: tuple, cluster_key,
                  seedcfg: dict, x_modal: float, modal_cons: float,
                  n_over: int, over_members: dict, modes: list,
-                 model: dict | None, t0: float) -> dict:
+                 model: dict | None, t0: float,
+                 out_fins: dict | None = None) -> dict:
     """Build one consensus model from an eligible set of loci.
 
     A cluster with two credible length modes (an LTR family with a solo
@@ -385,6 +459,8 @@ def _build_model(eligible: pd.DataFrame, loci: pd.DataFrame,
                 n_rows_dropped=len(fin["dropped"]), degenerate=degenerate,
                 lint=lr, info=info, **extra)
             eng_results[eng] = st
+            if out_fins is not None:
+                out_fins[eng] = fin
             pd.DataFrame(fin["dropped"]).to_csv(
                 outdir / f"dropped_rows.{eng}.tsv", sep="\t", index=False)
             if eng == primary or not cons:
