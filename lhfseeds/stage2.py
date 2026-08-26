@@ -618,3 +618,62 @@ def verify_rows_against_genome(coords: list, rows: list[str],
                             row_len=len(seq), ref_len=len(ref)))
     return dict(n_rows=len(rows), n_verified=n_ok, n_bad=len(bad),
                 all_verified=len(bad) == 0, bad=bad[:20])
+
+
+# ------------------------------------------- 8. length modes (HANDOFF 2026-08-26)
+def length_modes(member_lens: dict, split_ratio: float = 2.0,
+                 min_tools: int = 2) -> list[dict]:
+    """Group a cluster's member consensus lengths into length modes.
+
+    A cluster's members are not always describing one length. An LTR family
+    has a solo-LTR mode and a full-element mode; cluster 1183 has three members
+    at ~423 bp and five at ~7400 bp, a 17x span. Collapsing that to one modal
+    length and applying the F4 anti-tandem cap against it deleted every
+    full-length locus and rebuilt a 7.4 kb element as 453 bp.
+
+    Lengths are sorted and split wherever consecutive values differ by more
+    than `split_ratio`. A mode is CREDIBLE when at least `min_tools` distinct
+    tools support it -- the same cross-tool principle the deconvolution rule
+    uses, and the reason this does not reopen F4: cluster 62's 764/765 bp
+    entries are REPET's alone, one tool, so that mode is not credible and its
+    loci are still capped against the 265 bp mode the other four tools agree
+    on. Cluster 1183's long mode has five tools, so it survives.
+
+    Returns modes ordered by centre, each with the members and tools behind it.
+    """
+    items = sorted((v, m) for m, v in member_lens.items()
+                   if v is not None and v == v and v > 0)
+    if not items:
+        return []
+    groups = [[items[0]]]
+    for v, m in items[1:]:
+        if v / groups[-1][-1][0] > split_ratio:
+            groups.append([(v, m)])
+        else:
+            groups[-1].append((v, m))
+    out = []
+    for g in groups:
+        vals = [v for v, _ in g]
+        mems = [m for _, m in g]
+        tools = sorted({m.split(":")[0] for m in mems})
+        out.append(dict(centre=float(np.median(vals)), lo=float(min(vals)),
+                        hi=float(max(vals)), n_members=len(mems),
+                        n_tools=len(tools), tools=tools, members=sorted(mems),
+                        credible=len(tools) >= min_tools))
+    return out
+
+
+def assign_mode(spans: np.ndarray, centres: list[float]) -> np.ndarray:
+    """Index of the nearest credible mode for each locus, nearest in LOG space.
+
+    Log space because the question is "how many units is this", not "how many
+    base pairs away". With modes at 423 and 7367 the boundary falls at their
+    geometric mean (~1765 bp), so a tandem dimer of the solo LTR (~850 bp) is
+    still judged against 423 and capped, while a truncated full element at
+    2 kb is judged against 7367 and kept.
+    """
+    if not centres:
+        return np.zeros(len(spans), dtype=int)
+    c = np.log(np.asarray(centres, dtype=float))
+    s = np.log(np.maximum(np.asarray(spans, dtype=float), 1.0))
+    return np.abs(s[:, None] - c[None, :]).argmin(axis=1)

@@ -1,5 +1,11 @@
 # Next instructions — from CG's deck review (2026-08-25)
 
+> **2026-08-26 addendum — read `HANDOFF_consensus_length.md` first.** CG's
+> demo review found the rebuilt consensus regresses to the short length mode
+> on bimodal clusters (measured: 1183); that file carries the diagnosis and
+> four requested changes (bimodality-aware modal length, F4-guard scoping,
+> `consensus_engine: refiner`, re-run of the 8 affected clusters).
+
 Read with `RESUME.md` (state) and `PIPELINE_FINDINGS.md` (measured results, and
 the file the slides are rebuilt from). Branch: `stage2-seeds`.
 

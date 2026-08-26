@@ -514,3 +514,64 @@ def test_merge_copies_empty_input_returns_empty_frame_with_columns():
     for c in ("chrom", "start", "end", "strand", "n_fragments",
               "frag_starts", "frag_ends", "div", "cons_start", "cons_end"):
         assert c in out.columns
+
+
+# ------------------------------------------- bimodal length modes (2026-08-26)
+def test_length_modes_splits_a_solo_ltr_from_a_full_element():
+    """Cluster 1183: three members at ~423 bp and five at ~7400 bp. Collapsing
+    that to one modal length and capping against it deleted every full-length
+    locus and rebuilt a 7.4 kb element as 453 bp."""
+    ms = stage2.length_modes({
+        "rm2:a": 423, "edta:b": 423, "pantera:c": 414,
+        "repet:d": 7400, "fastltr:e": 7367, "pantera:f": 7359,
+        "rm2:g": 6523, "edta:h": 7400})
+    assert len(ms) == 2
+    assert [m["credible"] for m in ms] == [True, True]
+    assert round(ms[0]["centre"]) == 423 and round(ms[1]["centre"]) == 7367
+    assert ms[1]["n_tools"] == 5
+
+
+def test_length_modes_rejects_a_single_tool_long_mode():
+    """Cluster 62 before deconvolution: 264/264/269 from three tools, 764/765
+    from REPET alone. The long mode must NOT become credible, or F4 reopens and
+    tandem/chimeric multimers re-enter the seed."""
+    ms = stage2.length_modes({"rm2:a": 269, "pantera:b": 264, "edta:c": 264,
+                              "repet:d": 764, "repet:e": 765})
+    assert len(ms) == 2
+    assert ms[0]["credible"] is True and ms[0]["n_tools"] == 3
+    assert ms[1]["credible"] is False, "REPET alone is one tool, not a consensus"
+    assert ms[1]["tools"] == ["repet"]
+
+
+def test_length_modes_keeps_one_mode_when_lengths_agree():
+    ms = stage2.length_modes({"rm2:a": 378, "pantera:b": 351, "edta:c": 351,
+                              "repet:d": 367})
+    assert len(ms) == 1 and ms[0]["credible"] is True
+
+
+def test_length_modes_ignores_missing_lengths():
+    ms = stage2.length_modes({"edta:a": float("nan"), "rm2:b": 300,
+                              "pantera:c": 310, "repet:d": None})
+    assert len(ms) == 1 and ms[0]["n_members"] == 2
+
+
+def test_assign_mode_uses_the_geometric_midpoint():
+    """Nearest in LOG space: with modes at 423 and 7367 the boundary is their
+    geometric mean (~1765 bp), so a tandem dimer of the solo LTR is still
+    judged against 423 and capped, while a truncated full element at 2 kb is
+    judged against 7367 and kept."""
+    centres = [423.0, 7367.0]
+    spans = np.array([420, 850, 1700, 1800, 7400, 12000])
+    got = stage2.assign_mode(spans, centres)
+    assert list(got) == [0, 0, 0, 1, 1, 1]
+    # and the cap then does the right thing with x1.5
+    ref = np.array(centres)[got]
+    over = spans > 1.5 * ref
+    assert list(over) == [False, True, True, False, False, True], \
+        ("850 and 1700 bp are multimers of the solo LTR and are capped; 1800 "
+         "and 7400 are judged against the full element and kept; 12000 exceeds "
+         "1.5x even the full element and is capped")
+
+
+def test_assign_mode_with_no_credible_modes_is_safe():
+    assert list(stage2.assign_mode(np.array([100, 200]), [])) == [0, 0]

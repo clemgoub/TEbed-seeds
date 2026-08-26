@@ -44,7 +44,8 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
               tp_info: tuple = (None, "", "unmapped", None),
               fa: IndexedFasta | None = None,
               cluster_key: str | None = None,
-              kimura: float | None = None) -> dict:
+              kimura: float | None = None,
+              model: dict | None = None) -> dict:
     """Write the Stockholm seed and lint it.
 
     `stk lint` is a SOFT gate by design (PLAN_A): a failing packet still goes to
@@ -56,10 +57,17 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
     rows = ["".join(chr(x) for x in r).replace("-", stockholm.GAP)
             for r in fin["matrix"]]
     tp, tp_ver, tp_status, cpath = tp_info
+    # A two-model cluster emits two seeds; without the model in the ID they
+    # collide and `stk lint` raises duplicate_id when the batch is concatenated.
+    mtag = ""
+    if model and model.get("n_models", 1) > 1:
+        mtag = f"_m{model['index']}x{int(round(model['centre']))}"
     meta = {
-        "ID": f"TEbedSeeds_c{cluster_id:05d}_{mode}_{engine}",
+        "ID": f"TEbedSeeds_c{cluster_id:05d}_{mode}{mtag}_{engine}",
         "DE": (f"Consensus rebuilt from {len(ids)} genomic copies of "
-               f"multi-tool cluster {cluster_id} ({mode})")[:80],
+               f"multi-tool cluster {cluster_id} ({mode}"
+               + (f"; {int(round(model['centre']))} bp length mode" if mtag else "")
+               + ")")[:80],
         "AU": cfg.get("au_string", ""),
         "OC": cfg.get("taxon", ""),
         "SQ": len(ids),
@@ -68,7 +76,14 @@ def emit_seed(outdir: Path, cluster_id: int, mode: str, fin: dict,
         "SE": (f"TEbed-seeds {mode}; cluster {cluster_key or cluster_id}; "
                f"{cfg['assembly']}")[:80],
         "CC": [f"Rebuilt from track data; provenance in packet.json.",
-               f"Merge mode {mode}; one representative per deduplicated locus.",
+               f"Merge mode {mode}; one representative per deduplicated locus.",]
+               + ([f"Length model {model['index'] + 1} of {model['n_models']} "
+                   f"for this cluster, centre {int(round(model['centre']))} bp, "
+                   f"supported by {model['n_tools']} tools "
+                   f"({','.join(model['tools'])}). The other model(s) describe "
+                   f"the same family at a different length -- for an LTR family "
+                   f"the solo LTR and the full element."] if mtag else [])
+               + [
                f"Classification path {cpath or 'unresolved'}"
                + (f"; TP scheme {tp_ver}" if tp_ver else "")],
         "RF": stockholm.rf_line(fin["consensus"], fin["is_match"]),
@@ -155,34 +170,112 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
     if not len(pool):
         return dict(cluster_id=cluster_id, mode=mode, error="no copies")
 
-    conslen = pool.cons_len.dropna()
-    modal_cons = float(conslen.mode().iat[0]) if len(conslen) else float("nan")
-
-    loci = stage2.cluster_loci(pool, modal_cons_len=modal_cons)
-
-    # A copy is judged over-long against the CLUSTER's modal consensus length,
-    # not against its own member's.  Measured on cluster 62: the two over-long
-    # rows that reached the seed were both REPET copies of a 764 bp entry that
-    # is itself ~3 tandem units of a 265 bp element (PIPELINE_FINDINGS F4), so
-    # the per-member cap of 1.5 x 764 let 495 and 642 bp tandem dimers into an
-    # alignment of a 265 bp element.  The cluster's modal length is the better
-    # reference precisely because it is a consensus across tools.
     seedcfg = cfg.get("seed") or {}
     x_modal = float(seedcfg.get("max_copy_x_modal_consensus", 1.5))
-    n_over = 0
-    if not np.isnan(modal_cons):
-        over = (loci.end - loci.start) > x_modal * modal_cons
-        n_over = int(over.sum())
-        over_members = (loci.loc[over, "member"].value_counts().to_dict()
-                        if n_over else {})
-        loci["over_modal_consensus"] = over
-        loci.to_csv(outdir / "loci.tsv", sep="\t", index=False)
-        eligible = loci[~over]
-    else:
-        over_members = {}
-        loci.to_csv(outdir / "loci.tsv", sep="\t", index=False)
-        eligible = loci
+    split_ratio = float(seedcfg.get("mode_split_ratio", 2.0))
+    min_mode_tools = int(seedcfg.get("min_tools_per_mode", 2))
 
+    # A first pass with no cap, only to get the deduplicated loci. The modal
+    # length MUST be taken over loci, not over pool copy rows: a member with
+    # many redundant annotations otherwise decides the cluster's length. On
+    # cluster 1183 the pool-row mode is 423 bp and the locus mode is 7400 bp,
+    # and the 423 answer deleted every full-length locus.
+    loci = stage2.cluster_loci(pool)
+    member_lens = (loci.groupby("member").cons_len.median().dropna().to_dict()
+                   if "cons_len" in loci.columns else {})
+    modes = stage2.length_modes(member_lens, split_ratio, min_mode_tools)
+    credible = [m for m in modes if m["credible"]]
+    if not credible and modes:
+        credible = [max(modes, key=lambda m: m["n_members"])]
+    centres = [m["centre"] for m in credible]
+    modal_cons = float(centres[0]) if len(centres) == 1 else (
+        float(np.median(centres)) if centres else float("nan"))
+
+    # Each locus is capped against the mode IT belongs to. A 7.4 kb locus in a
+    # cluster whose credible modes are 423 bp and 7367 bp is a full element,
+    # not a 17-fold tandem multimer of the solo LTR, and capping it against
+    # 423 was what threw away the evidence.
+    spans = (loci.end - loci.start).to_numpy()
+    if centres:
+        midx = stage2.assign_mode(spans, centres)
+        ref = np.array(centres)[midx]
+        over = spans > x_modal * ref
+        loci["mode_index"] = midx
+        loci["mode_centre"] = ref
+    else:
+        over = np.zeros(len(loci), dtype=bool)
+        loci["mode_index"] = 0
+        loci["mode_centre"] = np.nan
+    loci["over_modal_consensus"] = over
+    n_over = int(over.sum())
+    over_members = (loci.loc[over, "member"].value_counts().to_dict()
+                    if n_over else {})
+    loci.to_csv(outdir / "loci.tsv", sep="\t", index=False)
+    eligible = loci[~over]
+
+    # One model per credible length mode. With a single mode this is exactly
+    # the previous behaviour and writes flat into outdir; with two it writes
+    # model0_.../model1_... subdirectories and the cluster-level packet.json
+    # lists them, so a curator sees the solo LTR and the full element as the
+    # pair they are rather than one silently winning.
+    models = []
+    for i, m in enumerate(credible):
+        models.append(dict(index=i, centre=m["centre"], n_tools=m["n_tools"],
+                           tools=m["tools"], members=m["members"],
+                           n_models=len(credible)))
+    if len(models) <= 1:
+        only = models[0] if models else None
+        return _build_model(eligible, loci, pool, mode, fa, cfg, outdir,
+                            cluster_id, threads, tp_info, cluster_key,
+                            seedcfg, x_modal, modal_cons, n_over,
+                            over_members, modes, only, t0)
+
+    built = []
+    for m in models:
+        sub = eligible[eligible.mode_index == m["index"]]
+        sdir = outdir / f"model{m['index']}_{int(round(m['centre']))}bp"
+        if len(sub) < 2:
+            built.append(dict(model_index=m["index"], centre=m["centre"],
+                              error=f"only {len(sub)} loci in this mode"))
+            continue
+        built.append(_build_model(sub, loci, pool, mode, fa, cfg, sdir,
+                                  cluster_id, threads, tp_info, cluster_key,
+                                  seedcfg, x_modal, modal_cons, n_over,
+                                  over_members, modes, m, t0))
+    packet = dict(
+        cluster_id=cluster_id, cluster_key=cluster_key, mode=mode,
+        multi_model=True, n_models=len(models),
+        cluster_modal_consensus_len=modal_cons,
+        length_modes=[{k: v for k, v in mm.items() if k != "members"}
+                      for mm in modes],
+        models=[{k: v for k, v in b.items()
+                 if k in ("model_index", "model_centre", "model_n_tools",
+                          "model_tools", "n_loci", "sampled_n",
+                          "rebuilt_consensus_len", "error")} for b in built],
+        model_dirs=[f"model{m['index']}_{int(round(m['centre']))}bp"
+                    for m in models],
+        n_loci=int(len(loci)), n_loci_over_modal=n_over,
+        elapsed_s=round(time.time() - t0, 1),
+    )
+    json.dump(packet, open(outdir / "packet.json", "w"), indent=1, default=str)
+    return packet
+
+
+def _build_model(eligible: pd.DataFrame, loci: pd.DataFrame,
+                 pool: pd.DataFrame, mode: str, fa: IndexedFasta,
+                 cfg: dict, outdir: Path, cluster_id: int,
+                 threads: int, tp_info: tuple, cluster_key,
+                 seedcfg: dict, x_modal: float, modal_cons: float,
+                 n_over: int, over_members: dict, modes: list,
+                 model: dict | None, t0: float) -> dict:
+    """Build one consensus model from an eligible set of loci.
+
+    A cluster with two credible length modes (an LTR family with a solo
+    LTR and a full element) yields two models, each built from its own
+    loci. Splitting here rather than picking one length is the point of
+    the change: picking one threw the other away.
+    """
+    outdir.mkdir(parents=True, exist_ok=True)
     smp = cfg["sampling"]
     sample = stage2.stratified_sample(eligible, smp["cap"], smp["floor"],
                                       smp["full_length_frac"])
@@ -270,7 +363,7 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
             lr = emit_seed(outdir, cluster_id, mode, fin, cfg, engine=eng,
                            tp_info=tp_info, fa=fa,
                            cluster_key=cluster_key,
-                           kimura=extra.get('avg_kimura'))
+                           kimura=extra.get("avg_kimura"), model=model)
             st = dict(
                 engine=eng, alignment_rows=int(m.shape[0]),
                 aln_width=int(m.shape[1]), n_match_columns=int(is_match.sum()),
@@ -311,7 +404,8 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
         assembly=cfg["assembly"], flank_bp=flank,
         members=sorted(pool.member.unique()),
         n_copy_rows=int(len(pool)),
-        n_loci=int(len(loci)),
+        n_loci=int(len(eligible)),
+        n_loci_cluster=int(len(loci)),
         redundancy_mean=round(float(loci.n_members.mean()), 3),
         n_loci_full=int(loci.any_full.sum()),
         support_histogram={int(k): int(v) for k, v in
@@ -320,7 +414,16 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
                               loci.groupby("n_tools").any_full.mean().items()},
         canonical_path=tp_info[3], tp=tp_info[0],
         tp_scheme_version=tp_info[1], tp_status=tp_info[2],
-        modal_consensus_len=modal_cons,
+        modal_consensus_len=(model["centre"] if model else modal_cons),
+        cluster_modal_consensus_len=modal_cons,
+        model_index=(model["index"] if model else 0),
+        model_centre=(model["centre"] if model else modal_cons),
+        model_n_tools=(model["n_tools"] if model else None),
+        model_tools=(model["tools"] if model else None),
+        model_members=(model["members"] if model else None),
+        n_models=(model["n_models"] if model else 1),
+        length_modes=[{k: v for k, v in m.items() if k != "members"}
+                      for m in modes],
         member_consensus_lens={m: float(v) for m, v in
                                pool.groupby("member").cons_len.median().items()},
         n_loci_over_modal=n_over,
@@ -348,7 +451,6 @@ def build_packet(copies: pd.DataFrame, mode: str, fa: IndexedFasta, cfg: dict,
     )
     json.dump(packet, open(outdir / "packet.json", "w"), indent=1, default=str)
     return packet
-
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
@@ -456,6 +558,14 @@ def main(argv=None):
             packets.append(p)
             if "error" in p:
                 print(f"[stage2] cluster {cid} {mode}: {p['error']}", file=sys.stderr)
+                continue
+            if p.get("multi_model"):
+                bits = " | ".join(
+                    f"model{m['model_index']} ~{int(m['model_centre'])}bp -> "
+                    f"{m.get('rebuilt_consensus_len', '?')} bp"
+                    for m in p.get("models", []))
+                print(f"[stage2] cluster {cid} {mode}: {p['n_loci']} loci, "
+                      f"{p['n_models']} length models: {bits}", file=sys.stderr)
                 continue
             print(f"[stage2] cluster {cid} {mode}: {p['n_copy_rows']} rows -> "
                   f"{p['n_loci']} loci -> {p['sampled_n']} sampled "

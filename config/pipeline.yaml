@@ -36,8 +36,18 @@ seed:
   max_copy_x_modal_consensus: 1.5
   min_match_occupancy: 0.5    # column is a consensus (match) column above this
   min_frag_bp: 30             # fragments below this carry no alignable signal
+  # A cluster's member consensus lengths can be BIMODAL -- an LTR family has a
+  # solo-LTR mode and a full-element mode (cluster 1183: ~423 bp and ~7400 bp).
+  # Lengths split into modes wherever consecutive values differ by more than
+  # mode_split_ratio; a mode counts only if min_tools_per_mode distinct tools
+  # support it, which is what stops cluster 62's REPET-only 765 bp mode from
+  # reopening F4. Each locus is capped against the mode it belongs to.
+  mode_split_ratio: 2.0
+  min_tools_per_mode: 2
 
-consensus_engine: mafft     # primary engine reported in the summary table
+consensus_engine: refiner   # primary engine reported in packets/summary (CG's preference,
+                            # 2026-08-26). Both still run; F8b found they agree at seed level,
+                            # so this is presentation, not correctness.
 engines: [mafft, refiner]   # build the seed both ways and compare (step 4.7)
 refiner_bin: vendor/refiner/bin/Refiner   # tools/setup_refiner.sh installs it
 overextension_ratio: 1.5    # vs MEDIAN member consensus length
