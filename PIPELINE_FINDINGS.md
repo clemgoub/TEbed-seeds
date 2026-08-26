@@ -442,27 +442,45 @@ to say.
 
 ---
 
-## F8b. Engine disagreement is a triage signal, not just noise
+## F8b. Engine disagreement is NOT a triage signal — refuted at batch scale
 
-**Measured:** the same 24 packets built twice from the *same* sampled copies,
-once with MAFFT and once with Dfam's Refiner. Consensus lengths agree to a
-median of **4 bp** (identical in 5 of 24, within 5 bp in 15 of 24). MAFFT is
-the longer of the two in 13 packets, Refiner in 6.
+**The hypothesis, from n=24:** the two packets where MAFFT and Refiner disagreed
+most were both in the one cluster whose canonical classification path stopped at
+`repeat:TE:ClassII`, suggesting `|len(mafft) − len(refiner)|` might flag the
+clusters a curator should look at first.
 
-But the tail is not small: the two worst disagreements are **140 bp and 70 bp**,
-and both are the same cluster — the one whose member-weighted classification
-path stops at `repeat:TE:ClassII`, i.e. the tools could not agree what kind of
-Class II element it is. The clusters where two independent aligners disagree
-about how long the element is are the clusters where the tools also disagree
-about what it is.
+**Tested properly on 412 packets from 207 clusters**, stratified across
+classification depth and tool support rather than taken from the top of the
+copy-number distribution (the original 12 were all top-2% by copy number and
+9 of 12 were 4-tool — the stratum where tools agree by construction):
 
-**Implication:** `|len(consensus_mafft) − len(consensus_refiner)|` is cheap
-(both engines already run) and looks like a useful **queue-priority signal** —
-a packet where the engines disagree is a packet where a curator's time is
-well spent. It costs nothing to record and is worth testing against the first
-batch of curator verdicts.
+| path depth | packets | median &#124;Δ&#124; | median relative Δ |
+|---|---|---|---|
+| 3 (stops at Class I/II) | 66 | 72.0 bp | 9.8% |
+| 4 (order) | 116 | 47.0 bp | 6.4% |
+| 5 (superfamily) | 230 | 58.5 bp | 8.0% |
 
-**Slide home:** validation slide (`d12_validation.png`), lower half — DONE.
+**Not supported.** Spearman(depth, |Δ|) = **+0.081, permutation p = 0.10**; on
+the length-normalised measure **+0.060, p = 0.22**. The one marginal result
+(Mann-Whitney on absolute Δ, p = 0.046) points the **opposite way** from the
+hypothesis — shallow-path clusters disagree *less*, not more — and the effect is
+non-monotonic across the three depths. Three tests, no consistent direction, no
+effect that survives normalisation: this is a null result, and the original
+observation was two packets in one cluster.
+
+**What is true and worth keeping:** the engines disagree considerably more than
+the first batch suggested — median **53.5 bp (7.7%)** of consensus length, with
+exact agreement in only 2.7% of packets. On the original 12 clusters the median
+was 4 bp. The difference is entirely composition: those 12 were short,
+high-copy, well-covered families where any aligner converges. Engine choice
+matters much more on the rest of the repeatome than the first sample implied —
+which is an argument for running both engines, just not the triage argument F8b
+originally made.
+
+**Slide home:** keep the two-engine slide, drop the triage claim. The honest
+framing — *we proposed a cheap curator-priority signal, tested it at 17x the
+sample size, and it is not there* — is worth more to the deck than a
+correlation that would not replicate.
 
 ---
 
@@ -651,3 +669,55 @@ non-autonomous elements.
 **Slide home:** a new stage-0 slide on tool scope — pairs naturally with
 `d1_availability.png` and F5 (which tools *cannot* cluster) by adding which
 tools *should not be expected to*, and what they are good for instead.
+
+---
+
+## F12. A seed with no consensus lints clean — the batch found 184 of them
+
+**Measured (first 200-cluster batch, 414 packets):** **174 of 414 Refiner
+packets and 10 MAFFT packets** produced a rebuilt consensus of length **zero**,
+and every one of them emitted a `.stk` file that passes `stk lint --genome`
+with no ERROR and no WARN. An all-`.` RF line is exactly as wide as its
+all-gap sequence rows, so nothing in the format is violated. Structurally
+valid, semantically empty — the same shape of failure as F9, one level up.
+
+**It was not the aligner's fault.** Refiner had called a consensus in
+**174/174** of those packets (median 4,217 bp, max 15,925 bp) and every one of
+its sequence identifiers parsed. The defect was in this pipeline's occupancy
+rule: a column counted as part of the consensus only if ≥50% of **all** rows
+were non-gap there. For a 4.2 kb element whose copies are fragments of
+different regions, no column ever reaches 50% of all rows, so the alignment has
+no match columns and the consensus is empty.
+
+**Fix — occupancy is span-normalised.** A column's denominator counts only the
+rows that *reach* it: a copy ending at position 900 says nothing about position
+3000 and should not be counted against it. Paired with an absolute depth floor
+(≥3 rows), because the two catch opposite failures — span-normalisation alone
+keeps a ragged shoulder that only two rows reach (2/2 reads as fully occupied),
+and the depth floor alone is what discarded the 174.
+
+**Validated against an independent reference.** Both clusters whose consensus
+had already been checked against rm2's own library move *toward* it:
+
+| cluster | before | after | rm2 library | identity before → after |
+|---|---|---|---|---|
+| 1103 | 265 bp | **270 bp** | 269 bp | 98.87% → **98.89%**, now full length |
+| 1048 | 363 bp | **380 bp** | 378 bp | 95.49% → **98.68%** |
+
+**After the fix: 0 of 414 packets degenerate**, and 88,368 alignment rows across
+both engines verify byte-exact against the assembly.
+
+**Why the first batch could never have found this.** The original twelve
+clusters were all short, high-copy, well-covered families in the top 2% of the
+copy-number distribution — every row spanned the whole element, so a 50%
+all-rows threshold was always attainable. The defect only exists for long
+elements with fragmentary copies, which the stratified batch was built to
+include. **A sample chosen for being easy to build cannot test the builder.**
+
+A packet with no match column is now marked `degenerate` and raises a
+`degenerate_alignment` ERROR in `lint_triage.tsv`, because `stk lint` cannot
+see it and never will.
+
+**Slide home:** pairs with F9 as the second half of "what a format checker
+cannot see" — F9 is coordinates that are wrong, F12 is a consensus that is
+absent.
