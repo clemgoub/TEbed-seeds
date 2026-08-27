@@ -506,7 +506,7 @@ def finalize_alignment(recs: list[tuple[str, str]], row_coords: list,
 
 # ------------------------------------------------------------- 7. Refiner
 def refiner(in_fa: Path, refiner_bin: Path, threads: int = 4,
-            workdir: Path | None = None) -> dict:
+            workdir: Path | None = None, keep_workdir: bool = False) -> dict:
     """Run Dfam's Refiner and return its alignment plus consensus.
 
     Refiner is NOT standalone despite appearances: it needs RepeatMasker's
@@ -557,9 +557,16 @@ def refiner(in_fa: Path, refiner_bin: Path, threads: int = 4,
                 kimura = float(head.split("Avg Kimura =")[1].split(")")[0])
             except (IndexError, ValueError):
                 pass
-    return dict(records=list(zip(ids, rows)), consensus=cons,
-                avg_kimura=kimura, workdir=str(work),
-                stdout=p.stdout[-500:])
+    out = dict(records=list(zip(ids, rows)), consensus=cons,
+               avg_kimura=kimura, workdir=str(work), stdout=p.stdout[-500:])
+    # Refiner leaves a copy of the input plus its BLAST databases behind. One
+    # per packet is invisible; a 400-packet batch is not, and four batches of
+    # this assembly filled the disk. Everything needed has been parsed out
+    # above, so the scratch goes unless explicitly kept for debugging.
+    if not keep_workdir:
+        shutil.rmtree(work, ignore_errors=True)
+        out["workdir"] = None
+    return out
 
 
 def parse_refiner_id(rid: str, coords: dict) -> tuple | None:
