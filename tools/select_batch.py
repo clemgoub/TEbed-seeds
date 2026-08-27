@@ -65,31 +65,49 @@ def select(cand: pd.DataFrame, n: int, seed: int = 42,
 
 def _spread_by_tools(pool: pd.DataFrame, want: int,
                      rng: np.random.Generator) -> pd.DataFrame:
-    """Spread `want` picks as evenly as the pool allows across n_tools, then
-    across majority_order inside each n_tools level."""
+    """Spread `want` picks evenly across n_tools, and WITHIN each n_tools level
+    evenly across majority_order.
+
+    The order pass is not cosmetic. Without it the draw follows the pool's
+    composition, and the pool is dominated by short non-autonomous families:
+    the first 200-cluster batch drew 2 of 19 long DNA/RC candidates against a
+    stratum expectation of ~4.8, and every domain-positive DNA/RC candidate in
+    the assembly (clusters 479, 755, 787, 1008) went unselected -- so the built
+    batch contained no autonomous DNA transposon at all, and that read as a
+    property of the genome until it was checked.
+    """
     if want <= 0 or not len(pool):
         return pool.iloc[:0]
     if want >= len(pool):
         return pool
-    groups = {k: g for k, g in pool.groupby("n_tools")}
+    by_tools = {k: g for k, g in pool.groupby("n_tools")}
     picks, need = [], want
-    # round-robin so a small stratum is never crowded out by a large one
-    order = sorted(groups)
-    taken = {k: 0 for k in order}
-    while need > 0 and any(taken[k] < len(groups[k]) for k in order):
-        for k in order:
+    taken: dict = {}
+    # round-robin over n_tools, and inside each level round-robin over order,
+    # so a scarce order is never crowded out by an abundant one
+    queues: dict = {}
+    for k, g in by_tools.items():
+        orders = {o: sub.iloc[rng.permutation(len(sub))]
+                  for o, sub in g.groupby("majority_order", dropna=False)}
+        queues[k] = (sorted(orders), orders, {o: 0 for o in orders})
+    levels = sorted(by_tools)
+    progress = True
+    while need > 0 and progress:
+        progress = False
+        for k in levels:
             if need == 0:
                 break
-            g = groups[k]
-            if taken[k] >= len(g):
-                continue
-            sub = g.iloc[rng.permutation(len(g))] if taken[k] == 0 else None
-            if sub is not None:
-                groups[k] = sub
-                g = sub
-            picks.append(g.iloc[[taken[k]]])
-            taken[k] += 1
-            need -= 1
+            names, orders, pos = queues[k]
+            for o in names:
+                if need == 0:
+                    break
+                g = orders[o]
+                if pos[o] >= len(g):
+                    continue
+                picks.append(g.iloc[[pos[o]]])
+                pos[o] += 1
+                need -= 1
+                progress = True
     return pd.concat(picks, ignore_index=True) if picks else pool.iloc[:0]
 
 
