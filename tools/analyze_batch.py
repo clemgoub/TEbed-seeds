@@ -97,8 +97,18 @@ def mann_whitney(a: np.ndarray, b: np.ndarray, n_perm: int = 20000,
 
 # ------------------------------------------------------------------ loading
 def load_packets(work: Path) -> pd.DataFrame:
+    """One row per built model.
+
+    A cluster with two credible length modes writes a cluster-level
+    packet.json listing its models plus one packet.json per model subdirectory
+    (F13). Both layouts are read; a multi-model cluster contributes one row per
+    model, tagged so the two are never averaged together -- a solo LTR and its
+    full element are different families' worth of sequence.
+    """
     rows = []
-    for f in sorted(work.glob("seed_packets/cluster_*/*/packet.json")):
+    files = sorted(work.glob("seed_packets/cluster_*/*/packet.json"))
+    files += sorted(work.glob("seed_packets/cluster_*/*/model*/packet.json"))
+    for f in files:
         try:
             p = json.load(open(f))
         except Exception:
@@ -113,6 +123,10 @@ def load_packets(work: Path) -> pd.DataFrame:
             n_loci=p.get("n_loci"), n_loci_full=p.get("n_loci_full"),
             modal_cons=p.get("modal_consensus_len"),
             n_deconvolved=len(p.get("over_modal_by_member") or {}),
+            model_index=p.get("model_index", 0),
+            model_centre=p.get("model_centre"),
+            n_models=p.get("n_models", 1),
+            model_dir=f.parent.name if f.parent.name.startswith("model") else "",
             support=json.dumps(p.get("support_histogram") or {}),
             full_by_support=json.dumps(p.get("full_frac_by_support") or {}),
         )

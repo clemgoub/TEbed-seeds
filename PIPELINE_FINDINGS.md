@@ -442,45 +442,54 @@ to say.
 
 ---
 
-## F8b. Engine disagreement is NOT a triage signal — refuted at batch scale
+## F8b. Engine disagreement is NOT a triage signal — refuted; it tracks element LENGTH, not classification difficulty
 
-**The hypothesis, from n=24:** the two packets where MAFFT and Refiner disagreed
-most were both in the one cluster whose canonical classification path stopped at
-`repeat:TE:ClassII`, suggesting `|len(mafft) − len(refiner)|` might flag the
-clusters a curator should look at first.
+**The hypothesis, from n=24:** the two packets where MAFFT and Refiner
+disagreed most were both in the one cluster whose canonical classification path
+stopped at `repeat:TE:ClassII`, suggesting `|len(mafft) − len(refiner)|` might
+flag the clusters a curator should look at first.
 
-**Tested properly on 412 packets from 207 clusters**, stratified across
-classification depth and tool support rather than taken from the top of the
-copy-number distribution (the original 12 were all top-2% by copy number and
-9 of 12 were 4-tool — the stratum where tools agree by construction):
+**Tested on 432 packets from 207 clusters**, stratified across classification
+depth and tool support rather than taken from the top of the copy-number
+distribution (the original twelve were all top-2% by copy number and 9 of 12
+were 4-tool — the stratum where tools agree by construction):
 
-| path depth | packets | median &#124;Δ&#124; | median relative Δ |
-|---|---|---|---|
-| 3 (stops at Class I/II) | 66 | 72.0 bp | 9.8% |
-| 4 (order) | 116 | 47.0 bp | 6.4% |
-| 5 (superfamily) | 230 | 58.5 bp | 8.0% |
+| path depth | packets | median &#124;Δ&#124; | median relative Δ | median consensus |
+|---|---|---|---|---|
+| 3 (stops at Class I/II) | 68 | 43.5 bp | 8.3% | 937 bp |
+| 4 (order) | 118 | 28.5 bp | 5.6% | 660 bp |
+| 5 (superfamily) | 246 | 50.0 bp | 7.5% | 835 bp |
 
-**Not supported.** Spearman(depth, |Δ|) = **+0.081, permutation p = 0.10**; on
-the length-normalised measure **+0.060, p = 0.22**. The one marginal result
-(Mann-Whitney on absolute Δ, p = 0.046) points the **opposite way** from the
-hypothesis — shallow-path clusters disagree *less*, not more — and the effect is
-non-monotonic across the three depths. Three tests, no consistent direction, no
-effect that survives normalisation: this is a null result, and the original
-observation was two packets in one cluster.
+The absolute measure gives a *significant* association with depth —
+Spearman **+0.111, p = 0.021**; Mann-Whitney **p = 0.0078** — but it fails
+three ways as a triage signal:
 
-**What is true and worth keeping:** the engines disagree considerably more than
-the first batch suggested — median **53.5 bp (7.7%)** of consensus length, with
-exact agreement in only 2.7% of packets. On the original 12 clusters the median
-was 4 bp. The difference is entirely composition: those 12 were short,
-high-copy, well-covered families where any aligner converges. Engine choice
-matters much more on the rest of the repeatome than the first sample implied —
-which is an argument for running both engines, just not the triage argument F8b
-originally made.
+1. **The direction is backwards.** Shallow-path clusters disagree *less*
+   (median 34 bp) than fully resolved ones (50 bp), the opposite of the
+   hypothesis.
+2. **It is not monotonic** (43.5 → 28.5 → 50.0 across depths 3, 4, 5).
+3. **It is a length artefact.** Element length predicts absolute disagreement
+   strongly (**Spearman +0.546, p < 0.0001**) and depth is itself mildly
+   correlated with length (+0.099, p = 0.039). Controlling for length, the
+   depth effect collapses: **partial Spearman +0.057, p = 0.238**. The
+   length-normalised measure is likewise non-significant (+0.086, p = 0.075).
+
+**Conclusion: refuted.** What predicts whether two aligners disagree about a
+consensus is how long the element is, not how hard it was to classify. That is
+unsurprising and useless for triage.
+
+**What is worth keeping.** The engines disagree far more than the first batch
+suggested — median **41 bp (7.0%)** of consensus length, exact agreement in
+only **2.3%** of packets, against a median of 4 bp on the original twelve
+clusters. Those twelve were short, high-copy, well-covered families where any
+aligner converges. Engine choice matters across the repeatome, just not as the
+curator-priority signal F8b proposed.
 
 **Slide home:** keep the two-engine slide, drop the triage claim. The honest
-framing — *we proposed a cheap curator-priority signal, tested it at 17x the
-sample size, and it is not there* — is worth more to the deck than a
-correlation that would not replicate.
+version — *we proposed a cheap curator-priority signal, tested it at 18x the
+sample size, found a significant effect pointing the wrong way, and showed it
+was element length all along* — is worth more to the deck than a correlation
+that would not replicate.
 
 ---
 
