@@ -1,0 +1,7 @@
+test	n	matched	note
+local TElib entry vs genomic sequence at its own annotated locus	40	0	the file in libs/ (8.2 MB, 6,862 entries)
+GenomeArk EDTA-v2.3.2 TElib vs genomic sequence at its own annotated locus	40	15	median pident 89.9%; misses are near-length-matched with no homology
+GenomeArk TElib entries present ANYWHERE in the assembly (genome-wide blast)	8	8	pident 98.9-100% - the library IS for this assembly
+local edta.bed loci vs the PUBLISHED TEanno.gff3 (same families)	5	5	724/724, 30/30, 62/62, 80/80 loci; identical longest lengths -> track is CURRENT
+GenomeArk TElib vs its loci split by EDTA's own method field	23	2	homology 2/15, structural 0/8 - neither method's loci match
+library entry's true identity resolved by coordinate lookup in the gff3	6	6	offsets +0,+8,+10,+11,+12,+20,+1162 - independent numbering, not a shift

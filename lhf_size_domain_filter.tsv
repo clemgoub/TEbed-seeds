@@ -1,0 +1,236 @@
+sid	cluster	model	bp	tp	n_full	depth	n_tools	centre	order	size_class	n_dom	domains	best_e	max_hmm_cov	has_dom	n_strong	strong_dom	best_cov	min_len	meets_len	tier	n_core	core_dom	core_cov
+c00008_single	8	single	556	DNA/CMC	25.0	35.0	1.0	556.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00053_single	53	single	576	DNA/hAT	16.0	34.0	1.0	624.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00071_single	71	single	377	LTR	43.0	62.0	1.0	377.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00084_single	84	single	4434	LTR	5.0	10.0	1.0	4434.0	LTR	>2500 bp	10	Integrase_H2C2,PEG10-RTL1_C-capsid,PEG10_N-capsid,RTL1-8_LDOC,RT_RNaseH,RT_RNaseH_2,RVT_1,Ty3_capsid,gag-asp_proteas,rve	1.5e-42	1.0	True	10	Integrase_H2C2,PEG10-RTL1_C-capsid,PEG10_N-capsid,RTL1-8_LDOC,RT_RNaseH,RT_RNaseH_2,RVT_1,Ty3_capsid,gag-asp_proteas,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c00108_single	108	single	279	DNA/MULE	39.0	48.0	1.0	255.0	DNA	<300 bp	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00112_single	112	single	413	LTR/Gypsy	14.0	19.0	1.0	407.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00117_single	117	single	848	LTR/Gypsy	13.0	22.0	1.0	798.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00121_single	121	single	406	DNA/hAT	112.0	65.0	1.0	413.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00124_single	124	single	308	LTR/Pao	11.0	19.0	1.0	310.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00126_single	126	single	372	DNA/MULE	57.0	51.0	1.0	272.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00134_single	134	single	324	DNA/hAT	170.0	61.0	1.0	308.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00143_single	143	single	513	DNA/hAT	38.0	51.0	1.0	439.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00168_single	168	single	552	DNA/PIF	143.0	63.0	1.0	612.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00206_single	206	single	502	RC	17.0	37.0	1.0	505.0	RC	300-600	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00210_single	210	single	318	RC	263.0	67.0	1.0	317.0	RC	300-600	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00216_single	216	single	761	LTR/Gypsy	13.0	31.0	1.0	762.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00235_single	235	single	334	LTR/Pao	14.0	59.0	1.0	339.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00236_single	236	single	269	LTR	41.0	59.0	1.0	271.0	LTR	<300 bp	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00237_single	237	single	950	LTR	10.0	18.0	1.0	952.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00244_single	244	single	378	DNA/PIF	10.0	32.0	1.0	274.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00256_single	256	single	162	RC	134.0	72.0	1.0	122.0	RC	<300 bp	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00260_single	260	single	1327	LTR/Gypsy	16.0	26.0	1.0	1310.0	LTR	1200-2500	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00262_single	262	single	629	DNA/CMC	258.0	59.0	1.0	626.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00263_single	263	single	369	LTR	23.0	60.0	1.0	357.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00264_single	264	single	7735	LTR/Gypsy	7.0	9.0	1.0	6313.0	LTR	>2500 bp	7	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,gag-asp_proteas,rve	2.3e-43	1.0	True	7	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,gag-asp_proteas,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c00295_single	295	single	300	LTR	129.0	71.0	1.0	302.0	LTR	<300 bp	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00312_single	312	single	1314	LTR/Gypsy	14.0	25.0	1.0	1301.0	LTR	1200-2500	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00317_single	317	single	349	DNA/hAT	177.0	55.0	1.0	364.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00325_single	325	single	528	RC	9.0	37.0	1.0	545.0	RC	300-600	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00346_single	346	single	328	Unknown	293.0	72.0	1.0	327.0	Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00352_single	352	single	266		266.0	69.0	1.0	194.0	Unknown	<300 bp	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00372_single	372	single	1368	LTR/Gypsy	7.0	16.0	1.0	1377.0	LTR	1200-2500	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00373_single	373	single	374	LTR	60.0	73.0	1.0	351.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00384_single	384	single	177	DNA/CMC	29.0	53.0	1.0	179.0	DNA	<300 bp	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00426_single	426	single	489	Unknown	717.0	70.0	1.0	491.0	Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00428_single	428	single	738	LINE/L1	7.0	35.0	1.0	758.0	LINE	600-1200	1	zf-RVT	7.4e-06	0.8	True	1	zf-RVT	0.8	2500.0	False	B · core domain, short for class	1	zf-RVT	0.8
+c00434_single	434	single	73	LINE/RTE	306.0	77.0	1.0	84.0	LINE	<300 bp	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00453_single	453	single	814	PLE	13.0	28.0	1.0	815.0	PLE	600-1200	0				False	0			1200.0	False	F · too short for class (MITE/fragment scale)	0		
+c00467_single	467	single	197	PLE	30.0	58.0	1.0	188.0	PLE	<300 bp	0				False	0			1200.0	False	F · too short for class (MITE/fragment scale)	0		
+c00503_single	503	single	487	LINE/I-Jockey	21.0	44.0	1.0	497.0	LINE	300-600	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00519_single	519	single	522	LINE/RTE	7.0	27.0	1.0	518.0	LINE	300-600	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00540_single	540	single	211	LTR/Gypsy	5.0	6.0	1.0	210.0	LTR	<300 bp	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00551_single	551	single	621	LTR	4.0	28.0	1.0	813.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00555_single	555	single	311	Unknown	97.0	73.0	2.0	286.0	Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00556_single	556	single	1651	Unknown	26.0	29.0	2.0	1649.0	Unknown	1200-2500	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00557_single	557	single	270	Unknown	532.0	71.0	1.0	270.0	Unknown	<300 bp	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00559_single	559	single	1563	Unknown	12.0	14.0	2.0	1554.5	Unknown	1200-2500	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00563_single	563	single	376	Unknown	3.0	12.0	1.0	5158.0	Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00581_single	581	single	1193	Unknown	40.0	50.0	2.0	974.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00588_single	588	single	854	DNA	157.0	71.0	2.0	876.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00599_single	599	single	1461	DNA	56.0	54.0	2.0	1375.5	DNA	1200-2500	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00616_single	616	single	5803	LTR/DIRS	21.0	23.0	2.0	5306.5	LTR	>2500 bp	1	RVT_1	5.4e-23	0.98	True	1	RVT_1	0.98	4000.0	True	A · autonomous (core domain + class size)	1	RVT_1	0.98
+c00617_single	617	single	1167		13.0	14.0	1.0	1173.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00618_single	618	single	175	LTR	345.0	55.0	1.0	176.0	LTR	<300 bp	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00632_single	632	single	461	PLE	42.0	54.0	2.0	486.5	PLE	300-600	1	GIY-YIG	6.8e-08	0.8717948717948718	True	1	GIY-YIG	0.8717948717948718	1200.0	False	C · accessory domain only (likely truncated)	0		
+c00664_single	664	single	863	LTR/Gypsy	21.0	22.0	2.0	862.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00669_single	669	single	6095	LTR/DIRS	42.0	42.0	2.0	6099.5	LTR	>2500 bp	2	RVT_1,RVT_3	1.1e-28	0.995	True	2	RVT_1,RVT_3	0.995	4000.0	True	A · autonomous (core domain + class size)	2	RVT_1,RVT_3	0.995
+c00674_single	674	single	222	LTR	138.0	53.0	1.0	227.0	LTR	<300 bp	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00676_single	676	single	539	DNA/CMC	756.0	67.0	2.0	530.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00679_single	679	single	237	DNA/hAT	10.0	16.0	1.0	185.0	DNA	<300 bp	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00682_single	682	single	587	LTR/Pao	8.0	6.0	1.0	562.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00686_single	686	single	824	LTR	26.0	46.0	2.0	834.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00689_single	689	single	423	DNA/TcMar	3.0	17.0	1.0	1894.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00698_single	698	single	1018	DNA/hAT	497.0	69.0	2.0	1014.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00700_single	700	single	255	Unknown	104.0	56.0	1.0	178.0	Unknown	<300 bp	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00704_single	704	single	964	Unknown	359.0	68.0	2.0	980.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00705_single	705	single	473	DNA/hAT	77.0	64.0	2.0	434.5	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00713_single	713	single	2461	LTR	87.0	50.0	2.0	1677.5	LTR	1200-2500	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00719_single	719	single	1577	DNA/hAT	161.0	54.0	2.0	1307.5	DNA	1200-2500	0				False	0			1500.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c00728_single	728	single	290	LTR	33.0	42.0	1.0	290.0	LTR	<300 bp	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00732_single	732	single	427	LTR	30.0	55.0	2.0	436.5	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00734_single	734	single	354	DNA/MULE	3195.0	67.0	2.0	477.5	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00738_single	738	single	883	LTR	21.0	37.0	2.0	881.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00742_single	742	single	575	LTR/Gypsy	41.0	24.0	2.0	476.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00747_single	747	single	1043	LTR	30.0	36.0	2.0	921.5	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00760_single	760	single	1163	LTR	96.0	60.0	2.0	838.5	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00763_single	763	single	284	DNA/hAT	619.0	68.0	1.0	283.0	DNA	<300 bp	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00768_single	768	single	878	DNA/MULE	460.0	76.0	2.0	847.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00773_single	773	single	743	RC	82.0	57.0	2.0	557.0	RC	600-1200	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00777_single	777	single	415	LTR	44.0	56.0	1.0	421.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00778_single	778	single	427	DNA/CMC	28.0	54.0	1.0	427.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00786_single	786	single	646	DNA/CMC	29.0	39.0	2.0	588.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00801_single	801	single	556	LINE/I-Jockey	147.0	54.0	2.0	385.0	LINE	300-600	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00807_single	807	single	336	PLE	39.0	44.0	1.0	336.0	PLE	300-600	0				False	0			1200.0	False	F · too short for class (MITE/fragment scale)	0		
+c00826_single	826	single	539	LINE/I-Jockey	22.0	32.0	1.0	369.0	LINE	300-600	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00830_single	830	single	1778	PLE	12.0	23.0	2.0	1630.0	PLE	1200-2500	0				False	0			1200.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c00848_single	848	single	1294	LINE/I-Jockey	25.0	31.0	2.0	950.0	LINE	1200-2500	1	RVT_1	3.3e-21	0.625	True	1	RVT_1	0.625	2500.0	False	B · core domain, short for class	1	RVT_1	0.625
+c00859_single	859	single	502	LINE/I-Jockey	16.0	38.0	1.0	364.0	LINE	300-600	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00871_single	871	single	827	LINE/I-Jockey	29.0	39.0	2.0	663.0	LINE	600-1200	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00873_single	873	single	966	LINE/I-Jockey	41.0	48.0	2.0	822.0	LINE	600-1200	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00875_single	875	single	1690	LINE/I-Jockey	17.0	30.0	2.0	1169.5	LINE	1200-2500	1	RVT_1	1e-41	0.97	True	1	RVT_1	0.97	2500.0	False	B · core domain, short for class	1	RVT_1	0.97
+c00878_single	878	single	2144	LINE/L1	9.0	16.0	1.0	2165.0	LINE	1200-2500	1	RVT_1	6.1e-29	0.84	True	1	RVT_1	0.84	2500.0	False	B · core domain, short for class	1	RVT_1	0.84
+c00883_single	883	single	1438	Unknown	27.0	29.0	3.0	1371.0	Unknown	1200-2500	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00884_single	884	single	4222	Unknown	27.0	25.0	3.0	4105.0	Unknown	>2500 bp	1	DDE_3	6.9e-08	0.2945205479452055	True	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c00885_single	885	single	650	Unknown	106.0	52.0	2.0	540.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00886_single	886	single	1003	DNA/hAT	58.0	60.0	3.0	992.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00890_single	890	single	5328	Unknown	251.0	5.0	2.0	5409.0	Unknown	>2500 bp	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c00896_single	896	single	2753	Unknown	752.0	4.0	2.0	2836.0	Unknown	>2500 bp	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c00897_single	897	single	8632	LTR/Gypsy	7.0	12.0	2.0	8624.5	LTR	>2500 bp	6	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.7e-37	1.0	True	6	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c00898_single	898	single	1281	DNA/hAT	65.0	55.0	2.0	1232.5	DNA	1200-2500	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00899_single	899	single	247	LINE/L1	2721.0	64.0	1.0	247.0	LINE	<300 bp	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00908_single	908	single	1066	Unknown	77.0	65.0	3.0	1057.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00911_single	911	single	2417	Unknown	63.0	42.0	3.0	2386.0	Unknown	1200-2500	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c00915_single	915	single	622	LTR	117.0	60.0	3.0	616.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00918_single	918	single	1329	DNA	76.0	59.0	2.0	1133.5	DNA	1200-2500	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00920_single	920	single	728	Unknown	213.0	67.0	3.0	720.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00924_single	924	single	82	DNA/MULE	1773.0	49.0	1.0	62.0	DNA	<300 bp	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00931_single	931	single	1368	DNA/hAT	112.0	67.0	3.0	1364.0	DNA	1200-2500	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00933_single	933	single	257	RC	272.0	49.0	1.0	257.5	RC	<300 bp	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00936_single	936	single	4281	LTR/Gypsy	4.0	17.0	2.0	4262.5	LTR	>2500 bp	6	DUF7041,Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.3e-20	0.9830508474576272	True	6	DUF7041,Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	0.9830508474576272	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	0.9830508474576272
+c00938_single	938	single	261	DNA/MULE	133.0	67.0	1.0	203.0	DNA	<300 bp	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00940_single	940	single	4594	LTR/Copia	6.0	6.0	2.0	4359.0	LTR	>2500 bp	5	RVT_2,Retrotran_gag_2,SH3_retrovirus,gag_pre-integrs,rve	5.7e-78	0.9959016393442623	True	5	RVT_2,Retrotran_gag_2,SH3_retrovirus,gag_pre-integrs,rve	0.9959016393442623	4000.0	True	A · autonomous (core domain + class size)	2	RVT_2,rve	0.9959016393442623
+c00945_single	945	single	4154	Unknown	40.0	27.0	3.0	4152.0	Unknown	>2500 bp	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c00952_single	952	single	2540	Unknown	22.0	21.0	3.0	2392.0	Unknown	>2500 bp	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c00954_single	954	single	342	LTR	333.0	68.0	2.0	332.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00955_single	955	single	673	RC	422.0	55.0	2.0	670.5	RC	600-1200	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00962_single	962	single	1408	RC	47.0	49.0	3.0	1396.0	RC	1200-2500	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00963_single	963	single	534	DNA/PIF	1028.0	70.0	3.0	534.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00968_single	968	single	761	LTR	74.0	68.0	3.0	762.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00970_single	970	single	513	DNA/hAT	3325.0	72.0	3.0	511.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00974_single	974	single	3085	LTR/Pao	5.0	15.0	3.0	3032.0	LTR	>2500 bp	1	DUF1759	1.1e-11	0.9459459459459459	True	1	DUF1759	0.9459459459459459	4000.0	False	C · accessory domain only (likely truncated)	0		
+c00981_single	981	single	1086	LTR	109.0	66.0	3.0	1095.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00986_single	986	single	7532	LTR/Pao	5.0	20.0	3.0	7531.0	LTR	>2500 bp	4	DUF1759,Integrase_H2C2,Pao_retrotransp,rve	9.2e-45	1.0	True	4	DUF1759,Integrase_H2C2,Pao_retrotransp,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	3	Integrase_H2C2,Pao_retrotransp,rve	1.0
+c00987_single	987	single	950	DNA/hAT	537.0	72.0	3.0	937.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00989_single	989	single	467	LTR	789.0	53.0	2.0	466.5	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c00996_single	996	single	692	DNA/hAT	69.0	65.0	3.0	617.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c00998_single	998	single	1272	LTR/DIRS	114.0	5.0	2.0	1902.0	LTR	1200-2500	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01004_single	1004	single	665	LINE/RTE	9427.0	15.0	2.0	435.0	LINE	600-1200	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01005_single	1005	single	844	LTR	38.0	48.0	2.0	796.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01006_single	1006	single	310	RC	186.0	68.0	2.0	307.5	RC	300-600	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01011_single	1011	single	531	LTR/Pao	13.0	19.0	1.0	521.5	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01013_single	1013	single	819	Unknown	28.0	30.0	3.0	1424.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01020_single	1020	single	373	LINE/I-Jockey	1076.0	64.0	2.0	402.5	LINE	300-600	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01021_single	1021	single	5105	LINE/I-Jockey	20.0	23.0	2.0	4029.5	LINE	>2500 bp	3	Exo_endo_phos,Exo_endo_phos_2,RVT_1	2.5e-34	0.9866071428571429	True	3	Exo_endo_phos,Exo_endo_phos_2,RVT_1	0.9866071428571429	2500.0	True	A · autonomous (core domain + class size)	3	Exo_endo_phos,Exo_endo_phos_2,RVT_1	0.9866071428571429
+c01029_single	1029	single	5691	LINE/L1	7.0	15.0	3.0	5670.0	LINE	>2500 bp	3	Exo_endo_phos,RVT_1,zf-RVT	3.2e-36	1.0	True	3	Exo_endo_phos,RVT_1,zf-RVT	1.0	2500.0	True	A · autonomous (core domain + class size)	3	Exo_endo_phos,RVT_1,zf-RVT	1.0
+c01041_single	1041	single	709	Unknown	3367.0	49.0	3.0	483.5	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01042_single	1042	single	298	Unknown	2749.0	59.0	2.0	298.0	Unknown	<300 bp	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01043_single	1043	single	972	DNA/hAT	103.0	63.0	3.0	957.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01045_single	1045	single	364	LTR/DIRS	2139.0	62.0	2.0	358.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01046_single	1046	single	259	RC	1039.0	63.0	2.0	253.0	RC	<300 bp	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01047_single	1047	single	964	DNA/hAT	254.0	63.0	3.0	963.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01048_single	1048	single	377	DNA/TcMar	3717.0	67.0	3.0	367.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01049_single	1049	single	269	Unknown	1545.0	66.0	2.0	269.0	Unknown	<300 bp	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01059_single	1059	single	336	DNA/hAT	1932.0	61.0	2.0	330.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01061_single	1061	single	324	LTR	1472.0	53.0	2.0	324.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01062_single	1062	single	2209	Unknown	159.0	6.0	2.0	2176.5	Unknown	1200-2500	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c01063_single	1063	single	774	Unknown	74.0	55.0	1.0	882.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01067_single	1067	single	824	LTR/Gypsy	62.0	39.0	2.0	825.5	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01068_single	1068	single	458	DNA/hAT	1386.0	72.0	3.0	451.0	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01069_single	1069	single	2396	LTR	33.0	14.0	3.0	2378.0	LTR	1200-2500	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01073_single	1073	single	1116	Unknown	138.0	34.0	3.0	1104.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01074_single	1074	single	4788	LTR/Gypsy	12.0	8.0	3.0	4411.0	LTR	>2500 bp	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	2.7e-22	0.985	True	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	0.985	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	0.985
+c01075_single	1075	single	7693	LTR/Pao	13.0	12.0	2.0	7495.0	LTR	>2500 bp	4	DUF1759,Integrase_H2C2,Pao_retrotransp,rve	7e-50	1.0	True	4	DUF1759,Integrase_H2C2,Pao_retrotransp,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	3	Integrase_H2C2,Pao_retrotransp,rve	1.0
+c01078_single	1078	single	382	LTR/Pao	60.0	20.0	2.0	383.5	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01079_single	1079	single	762	LTR/Pao	17.0	13.0	2.0	760.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01083_single	1083	single	655	LTR	222.0	61.0	3.0	654.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01084_single	1084	single	1838	LTR	39.0	20.0	3.0	1832.0	LTR	1200-2500	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01086_single	1086	single	6905	LTR/Gypsy	8.0	5.0	3.0	6888.0	LTR	>2500 bp	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	8.5e-36	1.0	True	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01089_single	1089	single	9324	LTR/Gypsy	19.0	14.0	3.0	9250.0	LTR	>2500 bp	7	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,gag-asp_proteas,rve	5.7e-41	1.0	True	7	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,gag-asp_proteas,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01090_single	1090	single	1166	LTR/Gypsy	73.0	48.0	2.0	1162.5	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01091_single	1091	single	13342	Unknown	28.0	7.0	2.0	10680.5	Unknown	>2500 bp	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c01092_single	1092	single	8181	LTR/Gypsy	30.0	12.0	3.0	7957.0	LTR	>2500 bp	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.5e-33	1.0	True	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0	4000.0	True	A · autonomous (core domain + class size)	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0
+c01094_single	1094	single	7221	LTR/Gypsy	13.0	16.0	4.0	7139.0	LTR	>2500 bp	8	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,gag-asp_proteas,rve,rve_3	3.9e-43	1.0	True	8	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,gag-asp_proteas,rve,rve_3	1.0	4000.0	True	A · autonomous (core domain + class size)	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0
+c01098_single	1098	single	890	DNA/CMC	951.0	73.0	3.0	722.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01103_single	1103	single	265	LINE/I-Jockey	17395.0	71.0	2.0	266.5	LINE	<300 bp	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01108_single	1108	single	338	SINE/5S	7424.0	39.0	2.0	322.0	SINE	300-600	0				False	0				False	E · non-autonomous, expected size (SINE)	0		
+c01109_single	1109	single	825	PLE	54.0	34.0	2.0	654.0	PLE	600-1200	0				False	0			1200.0	False	F · too short for class (MITE/fragment scale)	0		
+c01110_single	1110	single	722	LINE/I-Jockey	2139.0	65.0	3.0	722.0	LINE	600-1200	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01111_single	1111	single	359	PLE	84.0	60.0	2.0	925.0	PLE	300-600	0				False	0			1200.0	False	F · too short for class (MITE/fragment scale)	0		
+c01114_single	1114	single	3467	LINE/I-Jockey	25.0	16.0	2.0	3477.0	LINE	>2500 bp	3	Exo_endo_phos,Exo_endo_phos_2,RVT_1	1e-28	0.99	True	3	Exo_endo_phos,Exo_endo_phos_2,RVT_1	0.99	2500.0	True	A · autonomous (core domain + class size)	3	Exo_endo_phos,Exo_endo_phos_2,RVT_1	0.99
+c01115_single	1115	single	603	LINE/I-Jockey	4388.0	74.0	3.0	460.0	LINE	600-1200	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01120_single	1120	single	1466	Unknown	246.0	23.0	2.0	1086.0	Unknown	1200-2500	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01121_single	1121	single	480	Unknown	1916.0	72.0	3.0	481.5	Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01122_model0_404bp	1122	model0_404bp	399	LTR/Pao	16.0	24.0	2.0	404.5	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01122_model1_6171bp	1122	model1_6171bp	7697	LTR/Pao	16.0	10.0	3.0	6171.0	LTR	>2500 bp	3	Integrase_H2C2,Pao_retrotransp,RVT_1	2.5e-29	0.7796610169491526	True	3	Integrase_H2C2,Pao_retrotransp,RVT_1	0.7796610169491526	4000.0	True	A · autonomous (core domain + class size)	3	Integrase_H2C2,Pao_retrotransp,RVT_1	0.7796610169491526
+c01122_single	1122	single	7684						Unknown	>2500 bp	3	Integrase_H2C2,Pao_retrotransp,rve	2.5e-29	0.8983050847457628	True	3	Integrase_H2C2,Pao_retrotransp,rve	0.8983050847457628	2000.0	True	A · autonomous (core domain + class size)	3	Integrase_H2C2,Pao_retrotransp,rve	0.8983050847457628
+c01123_single	1123	single	8365	LTR/Gypsy	11.0	10.0	3.0	7757.0	LTR	>2500 bp	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.5e-35	1.0	True	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01125_single	1125	single	1056	RC	135.0	58.0	3.0	1067.0	RC	600-1200	0				False	0			3000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01126_single	1126	single	913	Unknown	814.0	63.0	3.0	889.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01127_single	1127	single	448	DNA/CMC	1411.0	24.0	3.0	1133.5	DNA	300-600	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01128_single	1128	single	13260	LTR	32.0	8.0	3.0	13482.0	LTR	>2500 bp	7	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVP,RVT_1,gag-asp_proteas,rve	4.2e-29	1.0	True	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVP,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01133_single	1133	single	759	LTR	84.0	53.0	1.0	904.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01134_single	1134	single	565	LTR	167.0	54.0	3.0	640.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01136_single	1136	single	497	LTR	167.0	69.0	3.0	497.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01137_single	1137	single	10779	LTR/Gypsy	52.0	54.0	4.0	8247.0	LTR	>2500 bp	1	gag-asp_proteas	2.9e-06	0.967391304347826	True	1	gag-asp_proteas	0.967391304347826	4000.0	True	C · accessory domain only (likely truncated)	0		
+c01141_single	1141	single	7065	LTR/Gypsy	11.0	9.0	3.0	5071.0	LTR	>2500 bp	6	Arc_N-lobe,Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	6.7e-41	1.0	True	6	Arc_N-lobe,Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01144_single	1144	single	9145	LTR/Gypsy	10.0	16.0	4.0	9094.0	LTR	>2500 bp	6	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.3e-39	1.0	True	6	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01145_single	1145	single	6307	LTR/Gypsy	15.0	5.0	4.0	6277.5	LTR	>2500 bp	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	2.1e-33	1.0	True	3	Integrase_H2C2,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	3	Integrase_H2C2,RVT_1,rve	1.0
+c01146_single	1146	single	5464	LTR/Pao	28.0	17.0	4.0	5156.5	LTR	>2500 bp	0				False	0			4000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c01149_single	1149	single	988	LTR/Gypsy	41.0	22.0	2.0	988.5	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01152_single	1152	single	6156	LTR/Pao	29.0	12.0	3.0	6166.0	LTR	>2500 bp	3	DUF1759,Integrase_H2C2,rve	2.6e-11	0.864406779661017	True	3	DUF1759,Integrase_H2C2,rve	0.864406779661017	4000.0	True	A · autonomous (core domain + class size)	2	Integrase_H2C2,rve	0.864406779661017
+c01161_model0_650bp	1161	model0_650bp	650	SINE/5S	358.0	21.0	2.0	649.5	SINE	600-1200	0				False	0				False	E · non-autonomous, expected size (SINE)	0		
+c01161_model1_2936bp	1161	model1_2936bp	2926	SINE/5S	358.0	11.0	3.0	2936.0	SINE	>2500 bp	0				False	0				False	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c01161_single	1161	single	2068						Unknown	1200-2500	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c01162_model0_354bp	1162	model0_354bp	320	LINE/RTE	3991.0	71.0	2.0	353.5	LINE	300-600	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01162_model1_1751bp	1162	model1_1751bp	1749	LINE/RTE	3991.0	24.0	3.0	1751.0	LINE	1200-2500	0				False	0			2500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01162_single	1162	single	316						Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01164_single	1164	single	7896	LTR/Pao	22.0	10.0	4.0	7849.5	LTR	>2500 bp	2	DUF1759,Pao_retrotransp	3.6e-17	0.9662162162162162	True	1	DUF1759	0.9662162162162162	4000.0	True	C · accessory domain only (likely truncated)	0		
+c01165_single	1165	single	453	LTR	515.0	63.0	2.0	455.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01168_single	1168	single	7049	LTR/Gypsy	25.0	10.0	3.0	7041.0	LTR	>2500 bp	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	6.9e-35	1.0	True	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0	4000.0	True	A · autonomous (core domain + class size)	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0
+c01169_model0_436bp	1169	model0_436bp	434	LTR/Gypsy	26.0	33.0	2.0	435.5	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01169_model1_5363bp	1169	model1_5363bp	5364	LTR/Gypsy	26.0	3.0	2.0	5363.0	LTR	>2500 bp	7	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVP,RVT_1,rve,rve_3	1.3e-38	1.0	True	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVP,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01169_single	1169	single	5372						Unknown	>2500 bp	4	RT_RNaseH,RT_RNaseH_2,RVP,RVT_1	6.9e-31	0.8613861386138614	True	3	RT_RNaseH,RVP,RVT_1	0.8613861386138614	2000.0	True	A · autonomous (core domain + class size)	2	RT_RNaseH,RVT_1	0.7142857142857143
+c01173_single	1173	single	8036	LTR/Gypsy	30.0	24.0	3.0	8508.0	LTR	>2500 bp	6	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	4.3e-34	1.0	True	6	Integrase_H2C2,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01174_single	1174	single	931	Unknown	446.0	54.0	3.0	900.0	Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01176_single	1176	single	6062	LTR/Pao	8.0	6.0	3.0	7612.0	LTR	>2500 bp	2	Integrase_H2C2,Pao_retrotransp	1.1e-21	0.8983050847457628	True	2	Integrase_H2C2,Pao_retrotransp	0.8983050847457628	4000.0	True	A · autonomous (core domain + class size)	2	Integrase_H2C2,Pao_retrotransp	0.8983050847457628
+c01177_single	1177	single	7694	LTR/Pao	10.0	13.0	4.0	7685.0	LTR	>2500 bp	3	DUF1759,Integrase_H2C2,Pao_retrotransp	1.7e-49	1.0	True	3	DUF1759,Integrase_H2C2,Pao_retrotransp	1.0	4000.0	True	A · autonomous (core domain + class size)	2	Integrase_H2C2,Pao_retrotransp	1.0
+c01180_model0_914bp	1180	model0_914bp	911	LTR/Pao	14.0	11.0	2.0	914.5	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01180_model1_5136bp	1180	model1_5136bp	5134	LTR/Pao	14.0	4.0	2.0	5136.5	LTR	>2500 bp	1	DUF1759	6.1e-09	0.7702702702702703	True	1	DUF1759	0.7702702702702703	4000.0	True	C · accessory domain only (likely truncated)	0		
+c01180_single	1180	single	5204						Unknown	>2500 bp	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c01182_single	1182	single	3638	LINE/R2	92.0	11.0	3.0	3256.0	LINE	>2500 bp	2	RVT_1,zf-RVT	1.8e-26	0.97	True	2	RVT_1,zf-RVT	0.97	2500.0	True	A · autonomous (core domain + class size)	2	RVT_1,zf-RVT	0.97
+c01183_model0_418bp	1183	model0_418bp	426	LTR/Gypsy	113.0	49.0	2.0	418.5	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01183_model1_7363bp	1183	model1_7363bp	7372	LTR/Gypsy	113.0	69.0	4.0	7363.0	LTR	>2500 bp	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	9.7e-35	1.0	True	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0	4000.0	True	A · autonomous (core domain + class size)	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0
+c01183_single	1183	single	426						Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01184_single	1184	single	7687	LTR/Pao	9.0	16.0	4.0	7663.5	LTR	>2500 bp	3	Integrase_H2C2,Pao_retrotransp,RVT_1	1e-09	0.9152542372881356	True	1	Integrase_H2C2	0.9152542372881356	4000.0	True	A · autonomous (core domain + class size)	1	Integrase_H2C2	0.9152542372881356
+c01185_model0_642bp	1185	model0_642bp	636	LTR	55.0	32.0	2.0	641.5	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01185_model1_5844bp	1185	model1_5844bp	6503	LTR	55.0	33.0	3.0	5844.5	LTR	>2500 bp	1	RVP	8.8e-06	0.6534653465346535	True	1	RVP	0.6534653465346535	4000.0	True	C · accessory domain only (likely truncated)	0		
+c01185_single	1185	single	6505						Unknown	>2500 bp	1	RVP	8.8e-06	0.6534653465346535	True	1	RVP	0.6534653465346535	2000.0	True	C · accessory domain only (likely truncated)	0		
+c01191_model0_976bp	1191	model0_976bp	970	LTR/Gypsy	14.0	14.0	2.0	976.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01191_model1_7598bp	1191	model1_7598bp	8384	LTR/Gypsy	14.0	11.0	4.0	7597.5	LTR	>2500 bp	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	4e-28	1.0	True	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01191_single	1191	single	8388						Unknown	>2500 bp	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,gag-asp_proteas,rve	2.2e-32	1.0	True	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,gag-asp_proteas,rve	1.0	2000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01193_single	1193	single	737	DNA/TcMar	2582.0	37.0	1.0	634.0	DNA	600-1200	0				False	0			1500.0	False	F · too short for class (MITE/fragment scale)	0		
+c01195_model0_318bp	1195	model0_318bp	319	Unknown	614.0	60.0	2.0	318.5	Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01195_model1_3573bp	1195	model1_3573bp	4116	Unknown	614.0	27.0	3.0	3573.0	Unknown	>2500 bp	0				False	0			2000.0	True	D · oversized for class, NO domain (suspect: chimera/rDNA)	0		
+c01195_single	1195	single	319						Unknown	300-600	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01196_single	1196	single	4487	LTR/Copia	24.0	29.0	4.0	4314.0	LTR	>2500 bp	5	RVT_2,Retrotran_gag_2,SH3_retrovirus,gag_pre-integrs,rve	1.9e-72	0.9552238805970149	True	5	RVT_2,Retrotran_gag_2,SH3_retrovirus,gag_pre-integrs,rve	0.9552238805970149	4000.0	True	A · autonomous (core domain + class size)	2	RVT_2,rve	0.9509803921568627
+c01198_single	1198	single	5485	LTR/Gypsy	30.0	13.0	4.0	5242.0	LTR	>2500 bp	9	Integrase_H2C2,PEG10-RTL1_C-capsid,PEG10_N-capsid,RTL1-8_LDOC,RT_RNaseH,RT_RNaseH_2,RVT_1,Ty3_capsid,gag-asp_proteas	5.4e-36	1.0	True	9	Integrase_H2C2,PEG10-RTL1_C-capsid,PEG10_N-capsid,RTL1-8_LDOC,RT_RNaseH,RT_RNaseH_2,RVT_1,Ty3_capsid,gag-asp_proteas	1.0	4000.0	True	A · autonomous (core domain + class size)	4	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1	1.0
+c01199_single	1199	single	7481	LTR/Pao	32.0	9.0	4.0	7115.0	LTR	>2500 bp	3	Integrase_H2C2,Pao_retrotransp,rve	8.4e-42	0.9444444444444444	True	3	Integrase_H2C2,Pao_retrotransp,rve	0.9444444444444444	4000.0	True	A · autonomous (core domain + class size)	3	Integrase_H2C2,Pao_retrotransp,rve	0.9444444444444444
+c01200_single	1200	single	487	LTR/Gypsy	2775.0	67.0	3.0	488.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01201_model0_889bp	1201	model0_889bp	890	LTR/Gypsy	35.0	29.0	2.0	889.0	LTR	600-1200	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01201_model1_6150bp	1201	model1_6150bp	7056	LTR/Gypsy	35.0	7.0	3.0	6150.5	LTR	>2500 bp	8	Integrase_H2C2,PEG10_N-capsid,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.2e-39	1.0	True	8	Integrase_H2C2,PEG10_N-capsid,PNMA_C,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0	4000.0	True	A · autonomous (core domain + class size)	6	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve,rve_3	1.0
+c01201_single	1201	single	890						Unknown	600-1200	0				False	0			2000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01203_model0_423bp	1203	model0_423bp	420	LTR/Gypsy	67.0	53.0	2.0	423.0	LTR	300-600	0				False	0			4000.0	False	F · too short for class (MITE/fragment scale)	0		
+c01203_model1_5207bp	1203	model1_5207bp	6010	LTR/Gypsy	67.0	34.0	4.0	5207.0	LTR	>2500 bp	9	Integrase_H2C2,PEG10-RTL1_C-capsid,PEG10_N-capsid,RTL1-8_LDOC,RT_RNaseH,RT_RNaseH_2,RVT_1,Ty3_capsid,rve	6.8e-38	1.0	True	9	Integrase_H2C2,PEG10-RTL1_C-capsid,PEG10_N-capsid,RTL1-8_LDOC,RT_RNaseH,RT_RNaseH_2,RVT_1,Ty3_capsid,rve	1.0	4000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0
+c01203_single	1203	single	5220						Unknown	>2500 bp	10	Integrase_H2C2,PEG10-RTL1_C-capsid,PEG10_N-capsid,RTL1-8_LDOC,RT_RNaseH,RT_RNaseH_2,RVT_1,Ty3_capsid,gag-asp_proteas,rve	1.2e-40	1.0	True	10	Integrase_H2C2,PEG10-RTL1_C-capsid,PEG10_N-capsid,RTL1-8_LDOC,RT_RNaseH,RT_RNaseH_2,RVT_1,Ty3_capsid,gag-asp_proteas,rve	1.0	2000.0	True	A · autonomous (core domain + class size)	5	Integrase_H2C2,RT_RNaseH,RT_RNaseH_2,RVT_1,rve	1.0

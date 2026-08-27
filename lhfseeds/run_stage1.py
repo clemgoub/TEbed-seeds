@@ -159,16 +159,42 @@ def main(argv=None):
         # cluster 62 contains TWO over-assembled REPET entries, so each one
         # sees the other among its mates and the max/min spread is 2.9x even
         # though 3 of the 4 mates agree on ~265 bp.
+        # A member is only an over-assembly if its OWN length lacks cross-tool
+        # support. Grouping the measured lengths into modes and asking whether
+        # the member's mode is credible (>=2 distinct tools) is the same test
+        # stage 2 uses for the F13 length modes, and running a cruder rule here
+        # corrupted real data: cluster 1193 is TIR:Tc1Mariner with
+        # rm2:rnd-1_family-254 at 1,633 bp (3,845 of 3,879 hits agree) and
+        # pantera:TcMar-Tc1_4 at 1,627 bp -- two independent tools on the same
+        # length -- and both were deconvolved to 634 bp because the median of
+        # their shorter mates is 634. The cluster is bimodal and the mode that
+        # was destroyed was the only credible one. That family was selected,
+        # built and shipped in the demo queue at 39% of its true length.
+        from .stage2 import length_modes
         deconvolved, abstained = {}, {}
         ratio_min = float(cfg.get("overassembly_min_ratio", 1.8))
         spread_max = float(cfg.get("overassembly_mate_spread_max", 1.3))
+        min_mode_tools = int(cfg.get("min_tools_per_mode", 2))
         lens = {m: v for m, v in conslen.items() if not np.isnan(v)}
+        modes = length_modes(lens, split_ratio=2.0, min_tools=min_mode_tools)
+        credible_members = {m for md in modes if md["credible"]
+                            for m in md["members"]}
         for m, own in lens.items():
             others = [v for k, v in lens.items() if k != m]
             if len(others) < 2:
                 continue
             mate = float(np.median(others))
             if mate <= 0 or own / mate < ratio_min:
+                continue
+            if m in credible_members:
+                abstained[m] = dict(own=own, mate=mate, n_mates=len(others),
+                                    n_agreeing=0,
+                                    reason="this member's own length is a "
+                                           "cross-tool supported length mode")
+                print(f"[stage1] cluster {cid}: {m} is {own/mate:.2f}x its "
+                      f"mates but its length is shared by >= "
+                      f"{min_mode_tools} tools -- NOT an over-assembly",
+                      file=sys.stderr)
                 continue
             agree = [v for v in others
                      if 1 / spread_max <= v / mate <= spread_max]
@@ -181,7 +207,7 @@ def main(argv=None):
                       f"mates but only {len(agree)}/{len(others)} mates agree "
                       f"on a reference -- ABSTAINING", file=sys.stderr)
                 continue
-            mate = float(np.median(agree))    # reference = the agreeing mates
+            mate = float(np.median(agree))
             if own / mate >= ratio_min:
                 deconvolved[m] = dict(own=own, mate=mate,
                                       n_agreeing=len(agree),

@@ -617,3 +617,29 @@ def test_seed_ids_stay_within_the_45_character_limit():
     assert longest >= 40, "sanity: the worst case should be close to the limit"
     # the old form must still be recognised as over-limit, so this test bites
     assert len("TEbedSeeds_c01183_merge_always_m1x7363_refiner") == 46
+
+
+def test_deconvolution_defers_to_a_cross_tool_length_mode():
+    """A member is only an over-assembly if its OWN length lacks cross-tool
+    support. Cluster 1193 is TIR:Tc1Mariner with rm2:rnd-1_family-254 at
+    1,633 bp (3,845 of 3,879 hits agree) and pantera:TcMar-Tc1_4 at 1,627 bp --
+    two independent tools on the same length -- and the old rule deconvolved
+    BOTH to 634 bp because the median of their shorter mates is 634. The
+    cluster is bimodal and the mode destroyed was the only credible one."""
+    lens = {"rm2:rnd-1_family-102": 159.0, "repet:G3316": 516.0,
+            "repet:G295": 752.0, "pantera:TcMar-Tc1_4": 1627.0,
+            "rm2:rnd-1_family-254": 1633.0}
+    modes = stage2.length_modes(lens, 2.0, 2)
+    credible = {m for md in modes if md["credible"] for m in md["members"]}
+    assert "rm2:rnd-1_family-254" in credible
+    assert "pantera:TcMar-Tc1_4" in credible
+    # the short modes are single-tool and must NOT protect their members
+    assert "repet:G3316" not in credible and "repet:G295" not in credible
+
+    # cluster 62 must still deconvolve: REPET's long mode is one tool
+    c62 = {"rm2:a": 269.0, "pantera:b": 264.0, "edta:c": 264.0,
+           "repet:d": 764.0, "repet:e": 765.0}
+    cred62 = {m for md in stage2.length_modes(c62, 2.0, 2) if md["credible"]
+              for m in md["members"]}
+    assert "repet:d" not in cred62 and "repet:e" not in cred62
+    assert {"rm2:a", "pantera:b", "edta:c"} <= cred62

@@ -1,0 +1,7 @@
+source	n_names
+GenomeArk TElib.fa	3389
+GenomeArk TEanno.gff3	3791
+local libs/ TElib.fa	6862
+hub inputs/edta.bed	3791
+shared: TElib & TEanno	3325
+TEanno-only (no library entry)	466
