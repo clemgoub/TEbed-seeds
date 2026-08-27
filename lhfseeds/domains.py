@@ -105,29 +105,36 @@ def run_bath(fasta: Path, out_tbl: Path, bath_bin: Path, profiles: Path,
 def parse_bath_tbl(path: Path) -> pd.DataFrame:
     """BATH --tblout -> tidy hits with HMM coverage.
 
-    Columns vary between BATH builds, so fields are taken positionally from the
-    left (stable) and the profile length is used to derive coverage.
+    The BATH table carries a leading hit-ID column, so the fields are shifted
+    one right of the HMMER layout they otherwise resemble:
+
+        1  target-name  acc  query-name  acc  hmm_len  hmm_from  hmm_to
+           seq_len  ali_from  ali_to  E-value  score  bias  PID  desc
+        0       1       2         3      4       5        6        7
+                  8         9        10      11      12    13   14
+
+    Reading them one column left silently produced ZERO domain hits from a
+    495-hit table, which then read as "no autonomous elements in this genome".
     """
+    cols = ["seq", "profile", "hmm_len", "hmm_from", "hmm_to", "evalue"]
     rows = []
     if not Path(path).exists():
-        return pd.DataFrame(columns=["seq", "profile", "evalue", "score",
-                                     "hmm_from", "hmm_to", "hmm_len", "cov"])
+        return pd.DataFrame(columns=cols + ["hmm_cov"])
     for line in open(path):
         if line.startswith("#") or not line.strip():
             continue
         f = line.split()
-        if len(f) < 10:
+        if len(f) < 12:
             continue
         try:
-            seq, profile = f[0], f[2]
-            nums = [x for x in f if re.fullmatch(r"-?\d+(\.\d+)?([eE][-+]?\d+)?", x)]
-            ev = float(f[12]) if len(f) > 12 else float("nan")
-            hf, ht, hl = (int(f[4]), int(f[5]), int(f[3])) if len(f) > 5 else (0, 0, 0)
+            seq, profile = f[1], f[3]
+            hmm_len, hf, ht = int(f[5]), int(f[6]), int(f[7])
+            ev = float(f[11])
         except (ValueError, IndexError):
             continue
-        cov = (abs(ht - hf) + 1) / hl if hl else float("nan")
-        rows.append(dict(seq=seq, profile=profile, evalue=ev, hmm_from=hf,
-                         hmm_to=ht, hmm_len=hl, cov=cov))
+        hmm_cov = (abs(ht - hf) + 1) / hmm_len if hmm_len else float("nan")
+        rows.append(dict(seq=seq, profile=profile, hmm_len=hmm_len,
+                         hmm_from=hf, hmm_to=ht, evalue=ev, hmm_cov=hmm_cov))
     return pd.DataFrame(rows)
 
 
@@ -138,7 +145,7 @@ def summarise_domains(hits: pd.DataFrame, min_cov: float = MIN_HMM_COV) -> pd.Da
                                      "n_core", "best_cov", "core_domains"])
     h = hits.copy()
     h["kind"] = h.profile.map(classify_domain)
-    strong = h[h.cov >= min_cov]
+    strong = h[h["hmm_cov"] >= min_cov]   # NOT h.cov: that is DataFrame.cov()
     out = []
     for seq, g in h.groupby("seq"):
         sg = strong[strong.seq == seq]
@@ -149,7 +156,7 @@ def summarise_domains(hits: pd.DataFrame, min_cov: float = MIN_HMM_COV) -> pd.Da
             core_kinds=";".join(sorted(core.kind.dropna().unique())),
             n_core=int(core.profile.nunique()),
             core_domains=";".join(sorted(core.profile.unique())),
-            best_cov=float(g.cov.max()) if len(g) else float("nan"),
+            best_cov=float(g["hmm_cov"].max()) if len(g) else float("nan"),
         ))
     return pd.DataFrame(out)
 
